@@ -1,0 +1,372 @@
+/* Custom Scrollbar for the dark theme */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* Ensure smooth transition for hidden elements */
+.hidden {
+    display: none ;
+}
+
+/* Glassmorphism focus effect for input */
+#user-input:focus {
+    outline: none;
+}
+
+#chat-container {
+    mask-image: linear-gradient(to bottom, transparent, black 5%, black 90%, transparent);
+}
+
+spline-viewer {
+    width: 100%;
+    height: 100%;
+}
+
+/* Optional: Fade in the 3D model so it doesn't "pop" in */
+#welcome-view spline-viewer {
+    animation: fadeIn 2s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Hide the "Built with Spline" badge for a cleaner look */
+spline-viewer::part(shadow-root) #logo {
+    display: none !important;
+}
+
+/* Custom Pulsing for the Neon Icon */
+@keyframes pulse-slow {
+    0%, 100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+    50% { opacity: 0.8; transform: scale(0.98); filter: brightness(1.3); }
+}
+.animate-pulse-slow {
+    animation: pulse-slow 3s ease-in-out infinite;
+}
+
+/* Fake Loading Bar Animation */
+@keyframes loading-bar {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+}
+.animate-loading-bar {
+    animation: loading-bar 2.5s ease-in-out forwards;
+}
+
+/* Ensure the body doesn't scroll while loading */
+.loading-active {
+    overflow: hidden;
+}
+
+/* Hacktoberfest Text Glow */
+h1 {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+/* Background Gradients */
+#home-page {
+    background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 100%);
+}
+
+/* Styled Navbar on Landing */
+nav {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(10px);
+}
+
+/* Hover effect on cards in landing page (if you add any) */
+.hero-btn {
+    clip-path: polygon(5% 0, 100% 0, 100% 70%, 95% 100%, 0 100%, 0 30%);
+}
+/* Navigation Link Hover Effect */
+.nav-link {
+    color: #94a3b8; /* Slate-400 */
+    position: relative;
+}
+
+.nav-link:hover {
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.4); /* Teal glow */
+}
+
+/* Custom button shape for 'Launch App' to match Hacktoberfest style */
+button.bg-white {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 15% 100%, 0 85%);
+}
+
+/* Add a grid pattern background overlay to the home page for the Hacktoberfest look */
+#home-page::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: radial-gradient(rgba(20, 184, 166, 0.1) 1px, transparent 1px);
+    background-size: 30px 30px;
+    z-index: -1;
+}
+/* Pricing Section Styles */
+#pricing-section {
+    background: radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.05) 0%, transparent 70%);
+}
+
+.pricing-card {
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.3s ease;
+}
+
+.pricing-card:hover {
+    transform: translateY(-10px);
+}
+
+/* Grayscale logos with hover effect */
+.grayscale {
+    filter: grayscale(100%);
+}
+
+.grayscale:hover {
+    filter: grayscale(0%);
+    opacity: 1;
+}
+
+/* Ensure the pricing anchor works from the Navbar */
+html {
+    scroll-behavior: smooth;
+}
+#about-section .group:hover {
+    border-color: rgba(20, 184, 166, 0.5);
+    box-shadow: 0 10px 40px -10px rgba(20, 184, 166, 0.2);
+    transform: translateY(-5px);
+}
+
+/* Styling for AI Reports (Lists and Tables) */
+#conversation-view .bot-msg ul {
+    list-style-type: disc;
+    margin-left: 1.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+#conversation-view .bot-msg li {
+    margin-bottom: 0.25rem;
+}
+
+#conversation-view .bot-msg strong {
+    color: #14b8a6; /* Teal glow for emphasis */
+    font-weight: 800;
+}
+
+/* If Gemini outputs a table for the user list */
+#conversation-view table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.75rem;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#conversation-view th {
+    background: #1e293b;
+    padding: 8px;
+    text-align: left;
+    color: #14b8a6;
+    text-transform: uppercase;
+}
+
+#conversation-view td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* --- Roadmap Container Styles --- */
+.roadmap-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 6rem; /* equivalent to w-24 */
+    cursor: default;
+}
+
+.node-icon {
+    width: 3rem; /* h-12 */
+    height: 3rem; /* w-12 */
+    background-color: #1e293b; /* slate-800 */
+    border: 1px solid #334155; /* slate-700 */
+    border-radius: 0.75rem; /* rounded-xl */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #14b8a6; /* Teal-500 */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Hover Effects */
+.roadmap-node:hover .node-icon {
+    border-color: #14b8a6;
+    background-color: rgba(20, 184, 166, 0.1);
+    transform: translateY(-5px) scale(1.1);
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.3);
+}
+
+.node-label {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: -0.025em;
+}
+
+.node-sub {
+    color: #64748b; /* slate-500 */
+    font-size: 8px;
+    text-transform: uppercase;
+    margin-top: 0.25rem;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+}
+
+/* --- Connecting Line & Flow Animation --- */
+.node-line {
+    display: none; /* Hidden on mobile */
+    flex: 1 1 0%;
+    height: 1px;
+    background-color: #1e293b; /* slate-800 */
+    position: relative;
+    overflow: hidden;
+    min-width: 20px;
+}
+
+@media (min-width: 768px) {
+    .node-line {
+        display: block; /* Shown on md screens and up */
+    }
+}
+
+.line-flow {
+    position: absolute;
+    height: 100%;
+    width: 60px;
+    top: 0;
+    background: linear-gradient(90deg, transparent, #14b8a6, transparent);
+    animation: flow-data 2s linear infinite;
+}
+
+@keyframes flow-data {
+    0% { left: -60px; }
+    100% { left: 100%; }
+}
+
+/* --- Memory Card Grid Hover (LearnPath Style) --- */
+#memory-grid .group {
+    transition: all 0.3s ease;
+}
+
+#memory-grid .group:hover {
+    background-color: rgba(20, 184, 166, 0.05);
+    border-color: rgba(20, 184, 166, 0.4);
+    transform: translateY(-5px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+}
+
+/* Brain GIF pulse effect */
+.brain-container {
+    position: relative;
+}
+
+.brain-container img {
+    filter: drop-shadow(0 0 15px rgba(20, 184, 166, 0.4));
+}
+
+/* --- Neuron Synapse Animations --- */
+@keyframes synapse-flicker {
+    0%, 100% { opacity: 0.3; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.1); }
+}
+
+.animate-synapse {
+    animation: synapse-flicker 1.5s ease-in-out infinite;
+}
+
+.animate-synapse-delayed {
+    animation: synapse-flicker 1.5s ease-in-out infinite 0.75s;
+}
+
+/* --- EKG Vital Sign Animation --- */
+@keyframes ekg-move {
+    0% {
+        stroke-dashoffset: 1000;
+    }
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+.animate-ekg {
+    stroke-dasharray: 1000; /* Long line to allow the moving effect */
+    animation: ekg-move 10s linear infinite;
+    filter: drop-shadow(0 0 5px rgba(20, 184, 166, 0.6));
+}
+
+/* Optional: Make the whole vitals bar glow when the mouse is near */
+.bg-slate-900\/40:hover {
+    border-color: rgba(20, 184, 166, 0.3);
+    box-shadow: 0 0 30px rgba(20, 184, 166, 0.05);
+    transition: all 0.5s ease;
+}
+
+@keyframes slide-in {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.animate-slide-in {
+    animation: slide-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.toast-item {
+    min-width: 250px;
+    border-radius: 4px;
+}
+
+@keyframes slide-down {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slide-in {
+    animation: slide-down 0.3s ease-out forwards;
+}
+
+/* Ensure navbar doesn't shrink content too much */
+nav {
+    min-height: 80px;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.8s ease-out forwards;
+}
+
+#logout-confirm-view {
+    /* Adding a subtle glow to the box */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(239, 68, 68, 0.1);
+}

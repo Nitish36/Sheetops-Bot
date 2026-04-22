@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SheetOps | Create Account</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#0f172a] text-slate-200 h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md p-10 bg-slate-900/60 border border-slate-800 rounded-3xl backdrop-blur-xl shadow-2xl">
+        <h2 class="text-3xl font-black italic text-teal-400 mb-2 uppercase tracking-tighter">SheetOps</h2>
+        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-10">Administrative Intelligence Hub</p>
+
+        {% if error %}
+            <div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-xl mb-6">
+                ⚠️ {{ error }}
+            </div>
+        {% endif %}
+
+        <form action="/register" method="POST" class="space-y-5">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Username</label>
+                <input type="text" name="username" required class="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl focus:border-teal-500 outline-none transition">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Corporate Email</label>
+                <input type="email" name="email" required placeholder="yourname@hcg" class="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl focus:border-teal-500 outline-none transition">
+                <span class="text-[9px] text-teal-500/60 mt-2 block italic">* Employees with @hcg domain get 100% free access.</span>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Password</label>
+                <input type="password" name="password" required class="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl focus:border-teal-500 outline-none transition">
+            </div>
+            <button type="submit" class="w-full bg-teal-600 hover:bg-teal-500 text-[#0f172a] font-black py-4 rounded-2xl transition shadow-lg shadow-teal-500/20 uppercase tracking-widest">
+                Start Hacking
+            </button>
+        </form>
+
+        <p class="mt-8 text-center text-xs text-slate-500">
+            Member already? <a href="/login" class="text-teal-400 font-bold hover:underline">Sign In</a>
+        </p>
+    </div>
+</body>
+</html>

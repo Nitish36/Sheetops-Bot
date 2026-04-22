@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SheetOps | Administrative Intelligence</title>
+    <link rel="icon" type="image/png" href="/static/loading-icon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script type="module" src="https://unpkg.com/@splinetool/viewer@1.0.28/build/spline-viewer.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-[#0f172a] text-slate-200 font-sans h-screen overflow-x-hidden">
+
+    <!-- FLASH MESSAGES / TOASTS -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[10000] flex flex-col gap-3">
+        <!-- Catch Flask Flashes (Login/Register) -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="toast-item bg-slate-900 border-l-4 {% if category == 'error' %}border-red-500{% else %}border-teal-500{% endif %} p-4 shadow-2xl backdrop-blur-md flex items-center gap-3 animate-slide-in">
+                        <i data-lucide="{% if category == 'error' %}alert-circle{% else %}check-circle{% endif %}" class="w-5 h-5 {% if category == 'error' %}text-red-500{% else %}text-teal-500{% endif %}"></i>
+                        <span class="text-xs font-bold uppercase tracking-widest text-white">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 1. LOADING SCREEN -->
+    <div id="loading-screen" class="fixed inset-0 z-[9999] bg-[#050811] flex flex-col items-center justify-center transition-opacity duration-1000">
+        <div class="relative">
+            <img src="/static/fun.gif" class="w-48 h-48 object-contain animate-pulse-slow" alt="Loading...">
+            <div class="absolute inset-0 bg-teal-500/20 blur-3xl rounded-full scale-75 animate-pulse"></div>
+        </div>
+        <div class="mt-8 flex flex-col items-center">
+            <span class="text-teal-500 font-mono text-xs tracking-[0.3em] uppercase animate-pulse">Initializing SheetOps AI</span>
+            <div class="w-48 h-[2px] bg-slate-800 mt-4 rounded-full overflow-hidden">
+                <div class="h-full bg-teal-500 w-0 animate-loading-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. HOME LANDING PAGE -->
+    <div id="home-page" class="min-h-screen w-full relative flex flex-col items-center justify-start overflow-y-auto z-10">
+        <!-- Hacktoberfest Grid Background -->
+        <div class="absolute inset-0 z-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(#14b8a6 0.5px, transparent 0.5px); background-size: 24px 24px;"></div>
+
+        <!-- Top Navbar (Home Only) -->
+        <nav class="w-full h-20 flex items-center justify-between px-6 z-[100] relative bg-[#0f172a]/80 backdrop-blur-md border-b border-white/5">
+            
+            <!-- 1. Logo Section -->
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-teal-500 rounded flex items-center justify-center">
+                    <i data-lucide="layers" class="text-[#0f172a] w-5 h-5"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tighter uppercase italic text-white">SheetOps </span>
+            </div>
+
+            <!-- 2. DESKTOP MENU (Visible only on screens LARGER than 768px) -->
+            <div class="hidden md:flex items-center gap-6">
+                <a href="/" class="text-sm font-medium text-slate-400 hover:text-teal-400 uppercase tracking-widest transition">Home</a>
+                <a href="#about-section" class="text-sm font-medium text-slate-400 hover:text-teal-400 uppercase tracking-widest transition">About</a>
+                <a href="#pricing-section" class="text-sm font-medium text-slate-400 hover:text-teal-400 uppercase tracking-widest transition">Pricing</a>
+                
+                {% if current_user.is_authenticated %}
+                    <div class="flex items-center gap-4 ml-4">
+                        <span class="text-[10px] text-teal-500 font-bold border border-teal-500/20 px-2 py-1 rounded">PLAN: {{ (current_user.plan|default('free')).upper() }}</span>
+                        <button onclick="switchView('toolkit')" class="bg-white text-black px-5 py-2 rounded-sm font-bold hover:bg-teal-500 hover:text-white transition">Launch App</button>
+                        <button onclick="confirmLogout()" class="text-slate-500 hover:text-red-400 uppercase text-[10px] font-bold transition cursor-pointer">Logout</button>
+                    </div>
+                {% else %}
+                    <a href="/login" class="text-sm font-bold text-slate-400 hover:text-teal-400 ml-4 transition">Login</a>
+                    <a href="/register" class="bg-teal-600 text-[#0f172a] px-6 py-2 rounded-sm font-bold hover:bg-teal-500 transition shadow-lg shadow-teal-500/20">Register</a>
+                {% endif %}
+            </div>
+
+            <!-- 3. MOBILE HAMBURGER (Visible only on screens SMALLER than 768px) -->
+            <div class="md:hidden flex items-center">
+                <button onclick="toggleMobileMenu()" class="text-teal-500 focus:outline-none bg-slate-800/50 p-2 rounded-lg">
+                    <i data-lucide="menu" id="menu-icon" class="w-8 h-8"></i>
+                </button>
+            </div>
+
+            <!-- 4. MOBILE DROPDOWN OVERLAY -->
+            <div id="mobile-menu" class="hidden absolute top-20 left-0 w-full bg-[#0f172a] border-b border-slate-800 flex-col p-6 space-y-4 z-[99] shadow-2xl">
+                <a href="/" onclick="toggleMobileMenu()" class="text-lg font-bold text-slate-300 border-b border-white/5 pb-2">Home</a>
+                <a href="#about-section" onclick="toggleMobileMenu()" class="text-lg font-bold text-slate-300 border-b border-white/5 pb-2">About</a>
+                <a href="#pricing-section" onclick="toggleMobileMenu()" class="text-lg font-bold text-slate-300 border-b border-white/5 pb-2">Pricing</a>
+                
+                {% if current_user.is_authenticated %}
+                    <button onclick="toggleMobileMenu(); switchView('toolkit')" class="w-full bg-teal-600 text-white py-4 rounded-xl font-bold">Launch App</button>
+                    <button onclick="confirmLogout()" class="text-slate-500 hover:text-red-400 uppercase text-[10px] font-bold transition cursor-pointer">Logout</button>
+                {% else %}
+                    <a href="/login" class="w-full text-center py-4 border border-teal-500/30 rounded-xl text-teal-400 font-bold">Login</a>
+                    <a href="/register" class="w-full text-center py-4 bg-teal-600 text-[#0f172a] rounded-xl font-bold">Register</a>
+                {% endif %}
+            </div>
+        </nav>
+
+        <!-- Hero Content -->
+        <div class="relative z-10 flex flex-col items-center mt-20 text-center px-4">
+            <!-- Your Spline Robot on Home Page -->
+            <div class="w-full h-[350px] mb-4">
+                <spline-viewer url="https://prod.spline.design/nWTxMMDEMUSlWd50/scene.splinecode"></spline-viewer>
+            </div>
+            
+            <h1 class="text-6xl md:text-8xl font-black mb-6 tracking-tighter uppercase leading-none">
+                SheetOps Chatbot<br><span class="text-teal-500 italic">has now arrived</span>
+            </h1>
+            
+            <p class="max-w-2xl text-slate-400 text-lg md:text-xl font-light mb-12">
+                The dynamic duo of AI and Smartsheet automation is here to optimize your workspace forever.
+            </p>
+            {% if current_user.is_authenticated %}
+            <!-- Home Page CTA -->
+            <button onclick="switchView('toolkit')" class="ml-6 bg-white text-black px-6 py-2 rounded-sm hover:bg-teal-500 hover:text-white transition-all duration-300 font-bold border-2 border-transparent hover:border-white/20">Launch Dashboard</button>
+            {% endif %}
+        </div>
+
+        <!-- ABOUT SECTION -->
+        <section id="about-section" class="relative z-10 w-full max-w-7xl mx-auto px-8 py-32 border-t border-white/5">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+                
+                <!-- Left Side: Typography & Mission -->
+                <div>
+                    <span class="text-teal-500 font-mono text-xs tracking-[0.3em] uppercase mb-4 block">The Mission</span>
+                    <h2 class="text-5xl font-black mb-8 tracking-tighter uppercase italic leading-tight">
+                        Empowering Smartsheet Admins <br>with <span class="text-teal-500">Autonomous Intelligence</span>
+                    </h2>
+                    <p class="text-slate-400 text-lg leading-relaxed mb-8">
+                        SheetOps was built to solve the "Administrative Burden." We’ve combined the reasoning power of <span class="text-white font-bold">Gemini 3</span> with the robust infrastructure of the <span class="text-white font-bold">Smartsheet API</span> to create a command center that doesn't just chat—it acts.
+                    </p>
+                    
+                    <!-- Quick Stats -->
+                    <div class="grid grid-cols-2 gap-8 border-l-2 border-teal-500 pl-8 py-2">
+                        <div>
+                            <div class="text-3xl font-black text-white">90%</div>
+                            <div class="text-xs uppercase tracking-widest text-slate-500 font-bold">Audit Accuracy</div>
+                        </div>
+                        <div>
+                            <div class="text-3xl font-black text-white">< 2s</div>
+                            <div class="text-xs uppercase tracking-widest text-slate-500 font-bold">Response Time</div>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Right Side: The "Core Pillars" Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    <!-- Pillar 1 -->
+                    <div class="p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-teal-500/5 transition group">
+                        <i data-lucide="microscope" class="text-teal-500 mb-4 w-8 h-8 group-hover:scale-110 transition"></i>
+                        <h4 class="text-white font-bold uppercase italic tracking-tighter mb-2">Deep Audit</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Instantly scan thousands of rows for overdue tasks, missing owners, and logic breaks.</p>
+                    </div>
+    
+                    <!-- Pillar 2 -->
+                    <div class="p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-teal-500/5 transition group">
+                        <i data-lucide="terminal" class="text-teal-500 mb-4 w-8 h-8 group-hover:scale-110 transition"></i>
+                        <h4 class="text-white font-bold uppercase italic tracking-tighter mb-2">Syntax Mastery</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">A specialized formula engine that understands Smartsheet syntax and cross-sheet references.</p>
+                    </div>
+    
+                    <!-- Pillar 3 -->
+                    <div class="p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-teal-500/5 transition group">
+                        <i data-lucide="life-buoy" class="text-teal-500 mb-4 w-8 h-8 group-hover:scale-110 transition"></i>
+                        <h4 class="text-white font-bold uppercase italic tracking-tighter mb-2">Auto-Ticketing</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Intelligent handoff to human support by automatically logging issues into Smartsheet rows.</p>
+                    </div>
+    
+                    <!-- Pillar 4 -->
+                    <div class="p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-teal-500/5 transition group">
+                        <i data-lucide="database" class="text-teal-500 mb-4 w-8 h-8 group-hover:scale-110 transition"></i>
+                        <h4 class="text-white font-bold uppercase italic tracking-tighter mb-2">Persistence</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Backed by Neon PostgreSQL to ensure your audit history and logs are never lost.</p>
+                    </div>
+                </div>
+            </div>
+    
+            <!-- TECH STACK TRANSPARENCY -->
+            <div class="mt-32 pt-16 border-t border-white/5">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-12">
+                    <div class="max-w-md">
+                        <h3 class="text-2xl font-black uppercase italic mb-4">The Stack</h3>
+                        <p class="text-slate-500 text-sm">We use the world's most reliable technologies to ensure your sheet data remains secure and your AI responses remain accurate.</p>
+                    </div>
+                    
+                    <!-- Tech badges -->
+                    <div class="flex flex-wrap gap-4 justify-center">
+                        <span class="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-teal-400">Python 3.12</span>
+                        <span class="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-teal-400">Google Gemini 3</span>
+                        <span class="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-teal-400">Smartsheet SDK</span>
+                        <span class="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-teal-400">Vercel Edge</span>
+                        <span class="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] text-teal-400">Neon Postgres</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    
+        <!-- PRICING SECTION -->
+        <section id="pricing-section" class="relative z-10 w-full max-w-7xl mx-auto px-4 py-32">
+            <div class="text-center mb-16">
+                <span class="text-teal-500 font-mono text-xs tracking-[0.3em] uppercase">Pricing</span>
+                <h2 class="text-5xl font-black mt-4 mb-4 tracking-tighter uppercase italic">Plans and Pricing</h2>
+                <p class="text-slate-400 max-w-xl mx-auto text-sm">Choose a plan that fits your Smartsheet governance needs, whether you're just starting or scaling your portfolio.</p>
+            </div>
+    
+            <!-- Pricing Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                
+                <!-- Card 1: Free -->
+                <div class="pricing-card bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl flex flex-col hover:border-teal-500/50 transition-all duration-500 group">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center border border-blue-500/30">
+                            <i data-lucide="sparkle" class="text-blue-400 w-5 h-5"></i>
+                        </div>
+                        <h3 class="text-xl font-bold italic tracking-tighter uppercase">Free Plan</h3>
+                    </div>
+                    <div class="mb-8">
+                        <span class="text-4xl font-black">$0</span><span class="text-slate-500 text-sm">/month</span>
+                    </div>
+                    <p class="text-slate-400 text-xs mb-8">For beginners to explore the platform and start their SheetOps journey.</p>
+                    <button onclick="switchView('chats')" class="w-full py-3 rounded-xl bg-white/10 border border-white/10 hover:bg-teal-500 hover:text-white transition font-bold uppercase text-xs tracking-widest mb-8">Start for Free</button>
+                    
+                    <ul class="space-y-4 text-xs text-slate-300">
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> AI Formula Builder</li>
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> Basic Sheet Audits</li>
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> 1 Ticket Log / Day</li>
+                        <li class="flex items-center gap-3 opacity-30"><i data-lucide="x" class="w-4 h-4"></i> Custom Looker Dashboard</li>
+                    </ul>
+                </div>
+    
+                <!-- Card 2: Pro (Featured) -->
+                <div class="pricing-card bg-teal-500/5 backdrop-blur-2xl border-2 border-teal-500/30 p-8 rounded-3xl flex flex-col relative scale-105 shadow-[0_0_50px_rgba(20,184,166,0.1)]">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-teal-500 text-[#0f172a] text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-widest">Popular</div>
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-teal-500/20 rounded-lg flex items-center justify-center border border-teal-500/30">
+                            <i data-lucide="zap" class="text-teal-400 w-5 h-5"></i>
+                        </div>
+                        <h3 class="text-xl font-bold italic tracking-tighter uppercase">Pro Plan</h3>
+                    </div>
+                    <div class="mb-8">
+                        <span class="text-4xl font-black">$80</span><span class="text-slate-500 text-sm">/month</span>
+                    </div>
+                    <p class="text-slate-400 text-xs mb-8">For active Admins who want advanced tools to grow their portfolio.</p>
+                    <button onclick="switchView('chats')" class="w-full py-3 rounded-xl bg-white text-[#0f172a] hover:bg-teal-500 hover:text-white transition font-bold uppercase text-xs tracking-widest mb-8 shadow-lg shadow-teal-500/20">Start 7 Day Trial</button>
+                    
+                    <ul class="space-y-4 text-xs text-slate-300">
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> Unlimited AI Audits</li>
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> Advanced Bulk Updates</li>
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> Priority Ticket Support</li>
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> Export Audit PDF</li>
+                    </ul>
+                </div>
+    
+                <!-- Card 3: Enterprise -->
+                <div class="pricing-card bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl flex flex-col hover:border-teal-500/50 transition-all duration-500">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center border border-green-500/30">
+                            <i data-lucide="shield-check" class="text-green-400 w-5 h-5"></i>
+                        </div>
+                        <h3 class="text-xl font-bold italic tracking-tighter uppercase">Enterprise</h3>
+                    </div>
+                    <div class="mb-8">
+                        <span class="text-4xl font-black italic uppercase">Custom</span>
+                    </div>
+                    <p class="text-slate-400 text-xs mb-8">For institutions seeking tailored Smartsheet governance solutions.</p>
+                    <button onclick="window.location.href='mailto:sales@sheetops.io'" class="w-full py-3 rounded-xl bg-white/10 border border-white/10 hover:bg-teal-500 hover:text-white transition font-bold uppercase text-xs tracking-widest mb-8">Contact Us</button>
+                    
+                    <ul class="space-y-4 text-xs text-slate-300">
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> Dedicated Manager</li>
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> Custom OAuth Integration</li>
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> Full Looker Analytics</li>
+                        <li class="flex items-center gap-3"><i data-lucide="check" class="w-4 h-4 text-teal-500"></i> Advanced AI Insights</li>
+                    </ul>
+                </div>
+            </div>
+    
+            <!-- PARTNER LOGO SECTION -->
+            <div class="mt-40 text-center">
+                <p class="text-slate-500 text-xs uppercase tracking-[0.4em] font-bold mb-10">Powering experiences from startups to enterprises</p>
+                <div class="flex flex-wrap justify-center items-center gap-12 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
+                    <div class="flex items-center gap-2"><i data-lucide="table" class="w-6 h-6"></i> <span class="text-sm font-bold">Smartsheet</span></div>
+                    <div class="flex items-center gap-2"><i data-lucide="zap" class="w-6 h-6"></i> <span class="text-sm font-bold">Gemini AI</span></div>
+                    <div class="flex items-center gap-2"><i data-lucide="cloud" class="w-6 h-6"></i> <span class="text-sm font-bold">Vercel</span></div>
+                    <div class="flex items-center gap-2"><i data-lucide="database" class="w-6 h-6"></i> <span class="text-sm font-bold">Neon Postgres</span></div>
+                    <div class="flex items-center gap-2"><i data-lucide="layout-dashboard" class="w-6 h-6"></i> <span class="text-sm font-bold">Looker</span></div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    
+    
+
+    <!-- 3. THE DASHBOARD APP (Your Sidebar + Chat + Formula) -->
+    <div id="dashboard-app" class="hidden h-screen w-full flex overflow-hidden">
+        
+        <!-- Sidebar -->
+        <aside class="w-64 bg-black/40 backdrop-blur-md border-r border-slate-800 flex flex-col p-4 shrink-0">
+            <div onclick="location.reload()" class="flex items-center gap-2 mb-8 px-2 cursor-pointer">
+                <div class="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
+                    <i data-lucide="layers" class="text-white w-5 h-5"></i>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">SheetOps <span class="text-xs bg-teal-500/20 text-teal-400 px-1.5 py-0.5 rounded">BETA</span></h1>
+            </div>
+
+            <nav class="flex-1 space-y-2">
+                {% if current_user.is_authenticated %}
+                <button onclick="switchView('settings')" id="side-settings" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition">
+                    <i data-lucide="key" class="w-5 h-5"></i> 
+                    <span>API Connections</span>
+                </button>
+                <button onclick="switchView('toolkit')" id="side-toolkit" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition">
+                    <i data-lucide="layout-grid" class="w-5 h-5"></i> Toolkit
+                </button>
+                <button onclick="switchView('chats')" id="side-chats" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-800 text-white transition">
+                    <i data-lucide="message-square" class="w-5 h-5"></i> Chats
+                </button>
+                <button onclick="switchView('formula')" id="side-formula" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition">
+                    <i data-lucide="variable" class="w-5 h-5"></i> Formula Builder
+                </button>
+                <button onclick="switchView('memory')" id="side-memory" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition">
+                    <i data-lucide="brain-circuit" class="w-5 h-5"></i> Memory
+                </button>
+                <button onclick="switchView('dashboard-builder')" id="side-dashboard-builder" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5 text-teal-400"></i> Dashboard Builder
+                </button>
+                {% endif %}
+                <button onclick="switchView('faq')" id="side-faq" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition">
+                    <i data-lucide="help-circle" class="w-5 h-5"></i> FAQ & Docs
+                </button>
+                <button onclick="switchView('onboarding')" id="side-onboarding" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-teal-400 bg-teal-500/10 border border-teal-500/20 hover:bg-teal-500/20 transition mb-4">
+                    <i data-lucide="map" class="w-5 h-5"></i> 
+                    <span class="font-bold uppercase tracking-widest text-[10px]">Onboarding Guide</span>
+                </button>
+                {% if current_user.email in ['nitk@hcg.com', 'thanujakedila@gmail.com'] %}
+                    <button onclick="switchView('analytics')" id="side-analytics" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition group border border-teal-500/10">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5 text-teal-500 group-hover:animate-pulse"></i> 
+                        <span class="flex-1 text-left">Analytics Hub</span>
+                        <i data-lucide="lock" class="w-3 h-3 opacity-30"></i>
+                    </button>
+                {% endif %}
+            </nav>
+            {% if current_user.is_authenticated %}
+            <div class="mt-8">
+                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2 mb-4">Recent Sessions</h3>
+                <div id="sessions-list" class="space-y-1 overflow-y-auto max-h-[300px]">
+                    <!-- Sessions will be injected here by JS -->
+                    <p class="text-[10px] text-slate-600 px-2 italic">No history yet...</p>
+                </div>
+            </div>
+
+            <button onclick="startNewSession()" class="mt-auto flex items-center justify-between w-full p-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-medium transition">
+                New Session <i data-lucide="plus"></i>
+            </button>
+            {% endif %}
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col relative bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a]">
+            
+            <header class="h-16 flex items-center justify-between px-8 border-b border-slate-800/50 bg-black/10 backdrop-blur-sm">
+                <div id="breadcrumb" class="text-sm text-slate-400 uppercase tracking-widest font-bold">Main / Toolkit</div>
+                <div class="flex items-center gap-4">
+                    <!-- FIXED: Only try to show user data if they are logged in -->
+                    {% if current_user.is_authenticated %}
+                        <button onclick="confirmLogout()" class="text-slate-500 hover:text-red-400 uppercase text-[10px] font-bold transition cursor-pointer">Logout</button>
+                        
+                        <i data-lucide="moon" class="w-5 h-5 text-slate-400 cursor-pointer"></i>
+                        
+                        <div class="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700">
+                            <div id="connection-status" class="w-2 h-2 rounded-full bg-red-500 animate-pulse mr-1"></div>
+                            <!-- Initials Logic -->
+                            <div class="w-6 h-6 rounded-full bg-teal-500 text-[10px] flex items-center justify-center font-bold text-[#0f172a]">
+                                {{ (current_user.username | default('??'))[:2].upper() }}
+                            </div>
+                            <!-- Name Logic -->
+                            <span class="text-xs font-medium">{{ current_user.name }}</span>
+                        </div>
+                    {% else %}
+                        <!-- Show nothing or a 'Sign In' link if someone manages to see the dashboard header while logged out -->
+                        <a href="/login" class="text-xs text-teal-500 font-bold uppercase">Sign In</a>
+                    {% endif %}
+                </div>
+            </header>
+
+            <!-- CONTAINER A: Chat -->
+            <div id="chat-container" class="flex-1 overflow-y-auto p-8 scroll-smooth">
+                <div id="welcome-view" class="max-w-4xl mx-auto mt-10 text-center flex flex-col items-center">
+                    <h2 class="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">How Can I help you Today {% if current_user.is_authenticated %}, {{ current_user.username }}{% endif %}?</h2>
+                    <p class="text-slate-400 text-sm mb-12">Manage sheets, automate tickets, and audit project health.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                        <button onclick="setPrompt('Audit Sheet ID: 5094688122949508')" class="p-6 rounded-2xl bg-slate-800/40 border border-slate-700 hover:border-teal-500/50 transition text-left">
+                            <div class="text-teal-400 mb-2 font-medium">Health Audit</div>
+                            <div class="text-sm text-slate-300">Run a health check on my project tracker...</div>
+                        </button>
+                        <button onclick="setPrompt('Create a support ticket')" class="p-6 rounded-2xl bg-slate-800/40 border border-slate-700 hover:border-teal-500/50 transition text-left">
+                            <div class="text-teal-400 mb-2 font-medium">Ticketing</div>
+                            <div class="text-sm text-slate-300">Open a Smartsheet support row...</div>
+                        </button>
+                    </div>
+                </div>
+                <div id="conversation-view" class="max-w-4xl mx-auto space-y-6 pb-32 hidden"></div>
+            </div>
+
+            <!-- CONTAINER B: Formula -->
+            <div id="formula-container" class="hidden flex-1 overflow-y-auto p-8">
+                <div class="max-w-4xl mx-auto mt-10">
+                    <h2 class="text-3xl font-bold mb-2 text-teal-400">Formula Builder</h2>
+                    <p class="text-slate-400 mb-8 text-sm">Debug Smartsheet errors or generate complex formulas.</p>
+                    <div class="bg-slate-800/40 border border-slate-700 rounded-2xl p-6">
+                        <textarea id="formula-input" rows="4" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl p-4 text-sm text-teal-100 outline-none" placeholder="Paste formula here..."></textarea>
+                        <button onclick="buildFormula()" class="mt-4 bg-teal-600 hover:bg-teal-500 text-white px-6 py-2 rounded-xl transition">Analyze Formula</button>
+                    </div>
+                    <div id="formula-result-box" class="hidden mt-6 bg-slate-800/20 border border-teal-500/20 rounded-2xl p-6">
+                        <div id="formula-output" class="text-slate-200 text-sm leading-relaxed"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!--Container C: FAQ -->
+            <div id="faq-container" class="hidden flex-1 overflow-y-auto p-8">
+                <div class="max-w-5xl mx-auto mt-10">
+                    <header class="mb-12">
+                        <h2 class="text-4xl font-black tracking-tighter uppercase italic text-white">Knowledge <span class="text-teal-500">Base</span></h2>
+                        <p class="text-slate-400 text-sm mt-2 font-medium uppercase tracking-widest">Common Smartsheet & SheetOps Questions</p>
+                    </header>
+            
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- FAQ Category: Smartsheet Technical -->
+                        <div class="space-y-4">
+                            <h3 class="text-teal-500 font-bold text-xs uppercase tracking-widest mb-4">Smartsheet Mastery</h3>
+                            
+                            <button onclick="askFAQ('How do I fix an #UNPARSEABLE error in a complex nested IF formula?')" class="w-full text-left p-4 bg-slate-900/40 border border-slate-800 rounded-xl hover:border-teal-500/50 transition group">
+                                <div class="text-sm font-bold text-white mb-1 group-hover:text-teal-400 transition">Fixing #UNPARSEABLE Errors</div>
+                                <p class="text-xs text-slate-500">Learn the common syntax mistakes in Smartsheet formulas.</p>
+                            </button>
+            
+                            <button onclick="askFAQ('What are the limitations of Cross-Sheet References and how do I manage them?')" class="w-full text-left p-4 bg-slate-900/40 border border-slate-800 rounded-xl hover:border-teal-500/50 transition group">
+                                <div class="text-sm font-bold text-white mb-1 group-hover:text-teal-400 transition">Cross-Sheet Reference Limits</div>
+                                <p class="text-xs text-slate-500">Understanding the 100,000 cell inbound link limit.</p>
+                            </button>
+                        </div>
+            
+                        <!-- FAQ Category: SheetOps Features -->
+                        <div class="space-y-4">
+                            <h3 class="text-teal-500 font-bold text-xs uppercase tracking-widest mb-4">Using SheetOps</h3>
+                            
+                            <button onclick="askFAQ('How does the Health Audit calculate the status of a project?')" class="w-full text-left p-4 bg-slate-900/40 border border-slate-800 rounded-xl hover:border-teal-500/50 transition group">
+                                <div class="text-sm font-bold text-white mb-1 group-hover:text-teal-400 transition">Audit Methodology</div>
+                                <p class="text-xs text-slate-500">How the AI identifies overdue tasks and missing owners.</p>
+                            </button>
+            
+                            <button onclick="askFAQ('Is my CSV data stored on your servers during a User or Seat Audit?')" class="w-full text-left p-4 bg-slate-900/40 border border-slate-800 rounded-xl hover:border-teal-500/50 transition group">
+                                <div class="text-sm font-bold text-white mb-1 group-hover:text-teal-400 transition">Data Security & Privacy</div>
+                                <p class="text-xs text-slate-500">Learn how we process your data securely via Vercel.</p>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!--API Connection-->
+            <div id="settings-container" class="hidden flex-1 overflow-y-auto p-8">
+                <div class="max-w-md mx-auto mt-10 p-8 bg-slate-900/60 border border-slate-800 rounded-3xl backdrop-blur-xl">
+                    <h2 class="text-2xl font-black italic text-teal-400 mb-6 uppercase">Smartsheet Connection</h2>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Personal Access Token</label>
+                            <input type="password" id="user-smartsheet-key" placeholder="Paste Smartsheet Token..." class="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl focus:border-teal-500 outline-none text-xs transition">
+                            <a href="https://app.smartsheet.com/b/home" target="_blank" class="text-[9px] text-teal-500/50 mt-2 block hover:underline">Where do I find my token?</a>
+                        </div>
+                        
+                        <button onclick="saveSmartsheetKey()" class="w-full bg-teal-600 hover:bg-teal-500 text-[#0f172a] font-black py-3 rounded-xl transition uppercase tracking-widest text-xs">
+                            Activate Connection
+                        </button>
+                        
+                        <p class="text-[9px] text-slate-500 text-center uppercase italic">This token allows SheetOps to read your sheets. It expires when you close your browser.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI INTELLIGENCE ROADMAP -->
+            <div id="memory-container" class="hidden flex-1 overflow-y-auto p-8 bg-[#050811]">
+                <div class="max-w-6xl mx-auto">
+                    
+                    <!-- HEADER -->
+                    <header class="mb-12">
+                        <h2 class="text-4xl font-black tracking-tighter uppercase italic text-white">Memory <span class="text-teal-500">Hub</span></h2>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">Neural Processing History & Audit Trail</p>
+                    </header>
+
+                    <!-- EXECUTIVE SCORECARD -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12 max-w-6xl mx-auto">
+                        <!-- Stat 1 -->
+                        <div class="p-6 bg-slate-900/40 border border-slate-800 rounded-3xl relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition"><i data-lucide="microscope" class="w-12 h-12"></i></div>
+                            <div class="text-slate-500 text-[9px] font-bold uppercase tracking-widest mb-1">Assets Audited</div>
+                            <div class="text-4xl font-black text-white" id="stat-audits">0</div>
+                            <div class="text-[8px] text-teal-500 mt-2 uppercase font-bold tracking-tighter">Live System Scan</div>
+                        </div>
+
+                        <!-- Stat 2 -->
+                        <div class="p-6 bg-slate-900/40 border border-slate-800 rounded-3xl relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition"><i data-lucide="shield-alert" class="w-12 h-12"></i></div>
+                            <div class="text-slate-500 text-[9px] font-bold uppercase tracking-widest mb-1">Security Risks Found</div>
+                            <div class="text-4xl font-black text-red-500" id="stat-risks">0</div>
+                            <div class="text-[8px] text-red-500/50 mt-2 uppercase font-bold tracking-tighter">Needs Attention</div>
+                        </div>
+
+                        <!-- Stat 3 -->
+                        <div class="p-6 bg-slate-900/40 border border-slate-800 rounded-3xl relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition"><i data-lucide="variable" class="w-12 h-12"></i></div>
+                            <div class="text-slate-500 text-[9px] font-bold uppercase tracking-widest mb-1">Formulas Debugged</div>
+                            <div class="text-4xl font-black text-white" id="stat-formulas">0</div>
+                            <div class="text-[8px] text-teal-500 mt-2 uppercase font-bold tracking-tighter">Syntax Verified</div>
+                        </div>
+
+                        <!-- Stat 4 -->
+                        <div class="p-6 bg-teal-500/5 border border-teal-500/20 rounded-3xl relative overflow-hidden group shadow-[0_0_30px_rgba(20,184,166,0.05)]">
+                            <div class="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition"><i data-lucide="dollar-sign" class="w-12 h-12 text-teal-500"></i></div>
+                            <div class="text-teal-500 text-[9px] font-bold uppercase tracking-widest mb-1">Potential Savings</div>
+                            <div class="text-4xl font-black text-white">$<span id="stat-savings">0</span></div>
+                            <div class="text-[8px] text-teal-500 mt-2 uppercase font-bold tracking-tighter">Operational ROI</div>
+                        </div>
+                    </div>
+
+                    <!-- THE ARCHITECTURAL ROADMAP -->
+                    <div class="relative w-full py-16 px-8 mb-20 bg-slate-900/20 border border-slate-800/50 rounded-[40px] overflow-hidden">
+                        <!-- Decorative Circuit Pattern Background -->
+                        <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(#14b8a6 0.5px, transparent 0.5px); background-size: 30px 30px;"></div>
+                        
+                        <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
+                            
+                            <!-- NODE 1: USER INPUT -->
+                            <div class="roadmap-node">
+                                <div class="node-icon"><i data-lucide="file-up"></i></div>
+                                <span class="node-label">Ingestion</span>
+                                <span class="node-sub">CSV / PROMPT</span>
+                            </div>
+
+                            <div class="node-line"><div class="line-flow"></div></div>
+
+                            <!-- NODE 2: API SYNC -->
+                            <div class="roadmap-node">
+                                <div class="node-icon"><i data-lucide="refresh-cw"></i></div>
+                                <span class="node-label">Validation</span>
+                                <span class="node-sub">SMARTSHEET API</span>
+                            </div>
+
+                            <div class="node-line"><div class="line-flow"></div></div>
+
+                            <!-- NODE 3: THE BRAIN (YOUR GIF) -->
+                            <div class="flex flex-col items-center">
+                                <div class="relative">
+                                    <div class="w-32 h-32 rounded-full border-2 border-teal-500/50 p-1 bg-black shadow-[0_0_50px_rgba(20,184,166,0.3)]">
+                                        <div class="w-full h-full rounded-full overflow-hidden relative">
+                                            <img src="/static/bot.webp" class="w-full h-full object-cover scale-110" alt="AI Brain">
+                                        </div>
+                                    </div>
+                                    <!-- Animated Scanning Ring -->
+                                    <div class="absolute -inset-2 border border-teal-500/20 rounded-full animate-ping"></div>
+                                </div>
+                                <h4 class="mt-4 text-teal-400 font-black italic text-sm tracking-widest animate-pulse">PROCESSING</h4>
+                            </div>
+
+                            <div class="node-line"><div class="line-flow"></div></div>
+
+                            <!-- NODE 4: DB STORAGE -->
+                            <div class="roadmap-node">
+                                <div class="node-icon"><i data-lucide="database"></i></div>
+                                <span class="node-label">Persistence</span>
+                                <span class="node-sub">NEON / GSHEETS</span>
+                            </div>
+
+                            <div class="node-line"><div class="line-flow"></div></div>
+
+                            <!-- NODE 5: OUTPUT -->
+                            <div class="roadmap-node">
+                                <div class="node-icon"><i data-lucide="bar-chart-3"></i></div>
+                                <span class="node-label">Looker</span>
+                                <span class="node-sub">INTELLIGENCE</span>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- STATS & GRID (Keep your existing stats and memory-grid below this) -->
+                    <div id="memory-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+
+                </div>
+
+                <!-- SYSTEM VITALS BAR -->
+                <div class="max-w-5xl mx-auto mb-12 flex items-center gap-6 px-8 py-4 bg-slate-900/40 border border-slate-800/50 rounded-2xl relative overflow-hidden">
+                    
+                    <!-- Animated Neuron -->
+                    <div class="relative flex items-center justify-center w-12 h-12">
+                        <div class="absolute inset-0 bg-teal-500/20 blur-xl rounded-full animate-pulse"></div>
+                        <svg viewBox="0 0 100 100" class="w-10 h-10 relative z-10 text-teal-400">
+                            <circle cx="50" cy="50" r="15" fill="currentColor" class="animate-pulse" />
+                            <!-- Neuron Dendrites (Animated) -->
+                            <path d="M50 35 L50 10 M50 65 L50 90 M35 50 L10 50 M65 50 L90 50" stroke="currentColor" stroke-width="4" stroke-linecap="round" class="animate-synapse" />
+                            <path d="M40 40 L20 20 M60 60 L80 80 M40 60 L20 80 M60 40 L80 20" stroke="currentColor" stroke-width="4" stroke-linecap="round" class="animate-synapse-delayed" />
+                        </svg>
+                    </div>
+
+                    <!-- Vital Sign EKG Graph -->
+                    <div class="flex-1 h-12 relative overflow-hidden">
+                        <svg viewBox="0 0 400 50" class="w-full h-full text-teal-500/30">
+                            <!-- Background Static Line -->
+                            <path d="M0 25 L400 25" stroke="currentColor" stroke-width="1" stroke-dasharray="4 4" />
+                            
+                            <!-- Animated EKG Heartbeat -->
+                            <path d="M0 25 L50 25 L60 5 L70 45 L80 25 L150 25 L160 5 L170 45 L180 25 L400 25" 
+                                fill="none" 
+                                stroke="#14b8a6" 
+                                stroke-width="2" 
+                                stroke-linecap="round" 
+                                class="animate-ekg" />
+                        </svg>
+                    </div>
+
+                    <!-- Live Status Label -->
+                    <div class="text-right">
+                        <div class="text-teal-400 font-mono text-[10px] font-bold tracking-widest uppercase animate-pulse">Neural Link: Active</div>
+                        <div class="text-slate-600 font-mono text-[8px] uppercase mt-1">Processing Latency: 42ms</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. ANALYTICS HUB (Embedded Looker) -->
+            <div id="analytics-container" class="hidden flex-1 w-full h-full overflow-hidden bg-black/20">
+                <div class="h-full w-full flex flex-col p-4">
+                    <div class="mb-4 px-4 flex justify-between items-center">
+                        <div>
+                            <h2 class="text-2xl font-black tracking-tighter uppercase italic text-white">System <span class="text-teal-500">Observability</span></h2>
+                            <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Real-time engagement & Savings metrics</p>
+                        </div>
+                        <button onclick="window.open('https://lookerstudio.google.com/reporting/bfa46c26-f8e9-493f-80bb-8ea3911adcfe', '_blank')" class="text-[10px] text-teal-500 hover:underline font-bold uppercase tracking-widest">
+                            Open Full Report <i data-lucide="external-link" class="w-3 h-3 inline ml-1"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- The Looker IFrame -->
+                    <div class="flex-1 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+                        <iframe
+                            src="https://lookerstudio.google.com/embed/reporting/bfa46c26-f8e9-493f-80bb-8ea3911adcfe/page/W3XtF"
+                            frameborder="0"
+                            style="border:0; width: 100%; height: 100%;"
+                            allowfullscreen
+                            sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. AI DASHBOARD BUILDER -->
+            <div id="dashboard-builder-container" class="hidden flex-1 overflow-y-auto p-8">
+                <div class="max-w-6xl mx-auto mt-10">
+                    <header class="mb-12">
+                        <h2 class="text-4xl font-black tracking-tighter uppercase italic text-white">AI Dashboard <span class="text-teal-500">Builder</span></h2>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">Instantly transform any CSV or Excel into a visual command center</p>
+                    </header>
+
+                    <!-- Upload Area -->
+                    <div id="builder-upload-zone" class="p-12 bg-slate-900/40 border-2 border-dashed border-slate-800 rounded-[30px] flex flex-col items-center justify-center gap-6 hover:border-teal-500/50 transition-all group">
+                        <div class="w-20 h-20 bg-teal-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition">
+                            <i data-lucide="upload-cloud" class="text-teal-500 w-10 h-10"></i>
+                        </div>
+                        <div class="text-center">
+                            <button onclick="triggerBuilderUpload()" class="bg-teal-600 hover:bg-teal-500 text-[#0f172a] px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-teal-500/20">
+                                Upload Data File
+                            </button>
+                            <p class="text-slate-500 text-[10px] mt-4 uppercase font-bold">Supports CSV or XLSX (Max 10MB)</p>
+                        </div>
+                    </div>
+
+                    <input type="file" id="builder-file-input" accept=".csv, .xlsx" class="hidden" onchange="handleBuilderUpload(event)">
+
+                    <!-- Results Area (Hidden until upload) -->
+                    <div id="builder-results" class="hidden mt-16 space-y-12">
+                        <!-- 1. Key Metrics Row -->
+                        <div id="builder-metrics" class="grid grid-cols-1 md:grid-cols-4 gap-6"></div>
+
+                        <!-- 2. Charts Grid -->
+                        <div id="builder-charts" class="grid grid-cols-1 md:grid-cols-2 gap-8"></div>
+                        
+                        <!-- 3. AI Insights Summary -->
+                        <div id="builder-ai-summary" class="p-8 bg-slate-900/60 border border-slate-800 rounded-3xl text-slate-300 text-sm leading-relaxed italic"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. ONBOARDING ROADMAP -->
+            <div id="onboarding-container" class="hidden flex-1 overflow-y-auto p-8 bg-[#050811]">
+                <div class="max-w-4xl mx-auto mt-10">
+                    <header class="mb-16 text-center">
+                        <h2 class="text-5xl font-black tracking-tighter uppercase italic text-white">Your <span class="text-teal-500">Journey</span></h2>
+                        <p class="text-slate-500 text-xs font-bold uppercase tracking-[0.4em] mt-4">Mastering the SheetOps Intelligence Platform</p>
+                    </header>
+
+                    <!-- THE VERTICAL PATHWAY -->
+                    <div class="relative space-y-12 before:content-[''] before:absolute before:left-[27px] before:top-2 before:bottom-2 before:w-[2px] before:bg-gradient-to-b before:from-teal-500 before:via-slate-800 before:to-slate-900">
+                        
+                        <!-- STEP 1 -->
+                        <div class="relative pl-20 group">
+                            <div class="absolute left-0 w-14 h-14 bg-[#0f172a] border-2 border-teal-500 rounded-2xl flex items-center justify-center z-10 shadow-[0_0_20px_rgba(20,184,166,0.3)] group-hover:scale-110 transition-transform">
+                                <span class="text-teal-500 font-black">01</span>
+                            </div>
+                            <div class="p-8 bg-slate-900/40 border border-slate-800 rounded-[30px] hover:border-teal-500/30 transition-all">
+                                <h3 class="text-xl font-bold text-white uppercase italic mb-2">Secure Handshake</h3>
+                                <p class="text-slate-400 text-sm leading-relaxed mb-4">Go to <span class="text-teal-400 font-bold">API Connections</span> and paste your Smartsheet Personal Access Token. This ensures SheetOps works within your specific permission levels.</p>
+                                <button onclick="switchView('settings')" class="text-[10px] font-bold text-teal-500 uppercase tracking-widest hover:underline">Connect Token →</button>
+                            </div>
+                        </div>
+
+                        <!-- STEP 2 -->
+                        <div class="relative pl-20 group">
+                            <div class="absolute left-0 w-14 h-14 bg-[#0f172a] border-2 border-slate-800 rounded-2xl flex items-center justify-center z-10 group-hover:border-teal-500 transition-all">
+                                <span class="text-slate-500 group-hover:text-teal-500 font-black">02</span>
+                            </div>
+                            <div class="p-8 bg-slate-900/40 border border-slate-800 rounded-[30px] hover:border-teal-500/30 transition-all">
+                                <h3 class="text-xl font-bold text-white uppercase italic mb-2">The Admin Toolkit</h3>
+                                <p class="text-slate-400 text-sm leading-relaxed mb-4">Explore 13 specialized modules. Export a "User List" or "Seat Report" from the Smartsheet Admin Center and drop the CSV here for an instant AI audit.</p>
+                                <button onclick="switchView('toolkit')" class="text-[10px] font-bold text-teal-500 uppercase tracking-widest hover:underline">Open Toolkit →</button>
+                            </div>
+                        </div>
+
+                        <!-- STEP 3 -->
+                        <div class="relative pl-20 group">
+                            <div class="absolute left-0 w-14 h-14 bg-[#0f172a] border-2 border-slate-800 rounded-2xl flex items-center justify-center z-10 group-hover:border-teal-500 transition-all">
+                                <span class="text-slate-500 group-hover:text-teal-500 font-black">03</span>
+                            </div>
+                            <div class="p-8 bg-slate-900/40 border border-slate-800 rounded-[30px] hover:border-teal-500/30 transition-all">
+                                <h3 class="text-xl font-bold text-white uppercase italic mb-2">Neural Sheet Audits</h3>
+                                <p class="text-slate-400 text-sm leading-relaxed mb-4">Paste any 16-digit <span class="text-teal-400 font-bold">Sheet ID</span> directly into the Chat AI. The bot will fetch live data and generate visual health charts and remediation plans.</p>
+                                <button onclick="switchView('chats')" class="text-[10px] font-bold text-teal-500 uppercase tracking-widest hover:underline">Start Auditing →</button>
+                            </div>
+                        </div>
+
+                        <!-- STEP 4 -->
+                        <div class="relative pl-20 group">
+                            <div class="absolute left-0 w-14 h-14 bg-[#0f172a] border-2 border-slate-800 rounded-2xl flex items-center justify-center z-10 group-hover:border-teal-500 transition-all">
+                                <span class="text-slate-500 group-hover:text-teal-500 font-black">04</span>
+                            </div>
+                            <div class="p-8 bg-slate-900/40 border border-slate-800 rounded-[30px] hover:border-teal-500/30 transition-all">
+                                <h3 class="text-xl font-bold text-white uppercase italic mb-2">Reporting & ROI</h3>
+                                <p class="text-slate-400 text-sm leading-relaxed">Download your findings as professional PDFs or check the **Memory Hub** to see the total security risks found and costs saved by the bot.</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. ADMIN TOOLKIT (The Command Center) -->
+            <div id="toolkit-container" class="hidden flex-1 overflow-y-auto p-8 scroll-smooth">
+                <div class="max-w-5xl mx-auto">
+                    <header class="mb-12">
+                        <h2 class="text-4xl font-black tracking-tighter uppercase italic text-white">Admin <span class="text-teal-500">Toolkit</span></h2>
+                        <p class="text-slate-400 text-sm mt-2 font-medium uppercase tracking-widest">Select a specialized module to begin</p>
+                    </header>
+
+                    <!-- Category: Common Tools -->
+                    <div class="mb-12">
+                        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-[0.3em] mb-6 border-b border-slate-800 pb-2">Common Utilities</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            
+                            <!-- Tool: Health Audit -->
+                            <button onclick="switchView('chats')" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 hover:bg-slate-800/80 transition-all duration-300 shadow-lg shadow-black/40">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="microscope" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Health Audit</span>
+                            </button>
+
+                            <!-- Tool: Formula Builder -->
+                            <button onclick="trackClick('Formula Builder'); switchView('formula')" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 hover:bg-slate-800/80 transition-all duration-300 shadow-lg shadow-black/40">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="variable" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Formula Builder</span>
+                            </button>
+
+                            <!-- Tool: Chat Assistant -->
+                            <button onclick="trackClick('Chat Assistant'); switchView('chats')" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 hover:bg-slate-800/80 transition-all duration-300 shadow-lg shadow-black/40">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="message-square" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Chat AI</span>
+                            </button>
+
+                            <!-- Tool: Ticket Hub -->
+                            <button onclick="trackClick('Support Ticket'); switchView('chats')" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 hover:bg-slate-800/80 transition-all duration-300 shadow-lg shadow-black/40">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="life-buoy" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Support Tickets</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Category: Advanced Operations (Placeholders for Demo) -->
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-[0.3em] mb-6 border-b border-slate-800 pb-2">Automation & Governance</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 opacity-60">
+                            <!-- Tool: PDF Intelligence (Replaced one disabled button) -->
+                            <button onclick="triggerPDFUpload()" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="file-search" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">PDF Summarizer</span>
+                            </button>
+
+                            <!-- Hidden PDF Input -->
+                            <input type="file" id="pdf-upload" accept=".pdf" class="hidden" onchange="handlePDFUpload(event)">
+                            <!-- Tool: Word Doc Summarizer -->
+                            <button onclick="triggerDocxUpload()" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="file-text" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Word Summarizer</span>
+                            </button>
+
+                            <!-- Hidden Word Input -->
+                            <input type="file" id="docx-upload" accept=".docx" class="hidden" onchange="handleDocxUpload(event)">
+                            <button onclick="triggerPptxUpload()" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="presentation" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">PPTX Summarizer</span>
+                            </button>
+                            
+                            <!-- Hidden PPTX Input -->
+                            <input type="file" id="pptx-upload" accept=".pptx" class="hidden" onchange="handlePptxUpload(event)">
+                            <!-- Tool: Excel Data Analyst -->
+                            <button onclick="triggerExcelUpload()" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="table-2" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Excel Analyst</span>
+                            </button>
+
+                            <!-- Hidden Excel Input -->
+                            <input type="file" id="excel-upload" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)">
+                        </div>
+                    </div>
+                    <br>
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-[0.3em] mb-6 border-b border-slate-800 pb-2">Automation & Governance</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 opacity-60">
+                            <!--User Management-->
+                            <button onclick="{% if current_user.plan == 'free' %} showPaymentModal(){% else %} trackClick('User Management'); triggerCSVUpload(){% endif %}" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 hover:bg-slate-800/80 transition-all duration-300 shadow-lg shadow-black/40">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="users" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">User Audit (CSV)</span>
+                            </button>
+                            <!-- HIDDEN FILE INPUT -->
+                            <input type="file" id="csv-upload" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
+
+                            <!-- Tool: Seat & License Audit --> <!--Attention-->
+                            <button onclick="{% if current_user.plan == 'free' %} showPaymentModal(){% else %}trackClick('Seat Management'); triggerSeatUpload(){% endif %}" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center">
+                                    <i data-lucide="contact-2" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Seat Management{% if current_user.plan == 'free' %}<i data-lucide="lock" class="w-3 h-3 inline"></i>{% endif %}</span>
+                            </button>
+                            <!-- HIDDEN FILE INPUT -->
+                            <input type="file" id="seat-upload" accept=".csv" class="hidden" onchange="handleSeatUpload(event)">
+
+                            <!-- Tool: Sheet Hygiene (Asset Sprawl) -->
+                            <button onclick="{% if current_user.plan == 'free' %} showPaymentModal(){% else %} trackClick('Sheet Audit'); triggerHygieneUpload(){% endif %}" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center">
+                                    <i data-lucide="trash-2" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Sheet Hygiene</span>
+                            </button>
+                            <input type="file" id="hygiene-upload" accept=".csv" class="hidden" onchange="handleHygieneUpload(event)">
+
+                            
+                            <!-- Tool: Report Hygiene (Asset Sprawl) -->
+                            <button onclick="{% if current_user.plan == 'free' %} showPaymentModal(){% else %} trackClick('Report Audit'); triggerReportUpload() {% endif %}" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center">
+                                    <i data-lucide="file-text" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Report Hygiene</span>
+                            </button>
+
+                            <input type="file" id="report-upload" accept=".csv" class="hidden" onchange="handleReportUpload(event)">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 opacity-60">
+                            <!--Dashboard  Management-->
+                            <button onclick="{% if current_user.plan == 'free' %} showPaymentModal(){% else %} trackClick('Dashboard Audit'); triggerDashboardUpload() {% endif %}" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center">
+                                    <i data-lucide="layout" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Dashboard Hygiene</span>
+                            </button>
+
+                            <input type="file" id="dashboard-upload" accept=".csv" class="hidden" onchange="handleDashboardUpload(event)">
+
+                            <!-- Tool: Webhook Security & Health -->
+                            <button onclick="{% if current_user.plan == 'free' %} showPaymentModal(){% else %} trackClick('Webhook Audit'); triggerWebhookUpload() {% endif %}" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center">
+                                    <i data-lucide="webhook" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Webhook Audit</span>
+                            </button>
+
+                            <input type="file" id="webhook-upload" accept=".csv" class="hidden" onchange="handleWebhookUpload(event)">
+
+                            <!-- Tool: Published Items Security -->
+                            <button onclick="{% if current_user.plan == 'free' %} showPaymentModal(){% else %} trackClick('Publish Audit'); triggerPublishedUpload() {% endif %}" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center">
+                                    <i data-lucide="globe" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Published Items</span>
+                            </button>
+
+                            <input type="file" id="published-upload" accept=".csv" class="hidden" onchange="handlePublishedUpload(event)">
+
+                            
+                            <!-- Tool: Report Hygiene (Asset Sprawl) -->
+                            <button onclick="{% if current_user.plan == 'free' %} showPaymentModal(){% else %} trackClick('Attachments Audit'); triggerAttachmentUpload() {% endif %}" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center group-hover:bg-teal-500/20 transition">
+                                    <i data-lucide="paperclip" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">Attachment Audit</span>
+                            </button>
+
+                            <input type="file" id="attachment-upload" accept=".csv" class="hidden" onchange="handleAttachmentUpload(event)">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 opacity-60">
+                            <!-- Tool: WorkApps Utilization & Cost -->
+                            <button onclick="{% if current_user.plan == 'free' %} showPaymentModal(){% else %} trackClick('Workapps Audit'); triggerWorkappsUpload() {% endif %}" class="group p-8 bg-slate-900/60 border border-slate-800 rounded-xl flex flex-col items-center justify-center gap-4 hover:border-teal-500/50 transition shadow-lg">
+                                <div class="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center">
+                                    <i data-lucide="layout-template" class="text-teal-500 w-6 h-6"></i>
+                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-white">WorkApps Audit</span>
+                            </button>
+
+                            <input type="file" id="workapps-upload" accept=".csv" class="hidden" onchange="handleWorkappsUpload(event)">
+
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Input (Only for Chat) -->
+            <div id="global-input-area" class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-[#0f172a] to-transparent">
+                <div class="max-w-4xl mx-auto bg-[#1e293b] border border-slate-700 rounded-2xl p-2 flex items-center gap-3 shadow-2xl">
+                    <button id="mic-btn" onclick="toggleVoice()" class="p-2 text-slate-400 hover:text-teal-400 transition relative">
+                        <i data-lucide="mic" class="w-5 h-5"></i>
+                        <div id="mic-pulse" class="hidden absolute inset-0 bg-teal-500/20 rounded-full animate-ping"></div>
+                    </button>
+                    <input type="text" id="user-input" placeholder="Ask or speak anything..." class="flex-1 bg-transparent border-none focus:ring-0 text-slate-200 text-sm p-2">
+                    <button onclick="sendMessage()" class="bg-teal-600 hover:bg-teal-500 text-white p-2 rounded-xl transition"><i data-lucide="send"></i></button>
+                </div>
+            </div>
+            <!-- VOICE VISUALIZER OVERLAY -->
+            <div id="voice-overlay" class="hidden fixed inset-0 z-[100] bg-[#050811]/90 backdrop-blur-md flex flex-col items-center justify-center">
+                <div class="relative mb-12">
+                    <!-- The Visualizer Ring -->
+                    <div id="visualizer-circle" class="w-48 h-48 rounded-full border-2 border-teal-500/30 flex items-center justify-center bg-teal-500/5 shadow-[0_0_50px_rgba(20,184,166,0.2)]">
+                        <i data-lucide="mic" class="w-12 h-12 text-teal-400 animate-pulse"></i>
+                    </div>
+                    <!-- Dynamic Waves will be drawn here -->
+                    <canvas id="voice-wave" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                </div>
+                <h3 class="text-teal-400 font-black italic tracking-[0.3em] uppercase animate-pulse">Listening...</h3>
+                <p id="speech-preview" class="text-slate-500 text-sm mt-4 italic max-w-md text-center">Speak your command...</p>
+                <button onclick="toggleVoice()" class="mt-12 text-slate-500 hover:text-white uppercase text-[10px] font-bold tracking-widest border border-slate-800 px-6 py-2 rounded-full transition">Cancel</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- LOGOUT OVERLAY MODAL -->
+    <div id="logout-modal" class="hidden fixed inset-0 z-[10000] bg-[#050811]/90 backdrop-blur-md flex items-center justify-center p-4">
+        <!-- Confirmation Box -->
+        <div id="logout-confirm-view" class="w-full max-w-sm bg-slate-900 border border-slate-800 p-8 rounded-[30px] shadow-2xl text-center transform transition-all animate-slide-in">
+            <div class="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="log-out" class="text-red-500 w-8 h-8"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white uppercase italic mb-2">End Session?</h3>
+            <p class="text-slate-400 text-sm mb-8 font-medium">Are you sure you want to logout? Your Smartsheet connection will be cleared.</p>
+            
+            <div class="flex flex-col gap-3">
+                <button onclick="processLogout()" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl transition uppercase tracking-widest text-xs">
+                    Yes, Logout
+                </button>
+                <button onclick="closeLogoutModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-4 rounded-2xl transition uppercase tracking-widest text-[10px]">
+                    Cancel
+                </button>
+            </div>
+        </div>
+
+        <!-- Thank You Box (Initially Hidden) -->
+        <div id="logout-thanks-view" class="hidden w-full max-w-sm text-center animate-fade-in">
+            <div class="relative w-32 h-32 mx-auto mb-8">
+                <img src="/static/bot.gif" class="w-full h-full object-contain animate-pulse-slow">
+                <div class="absolute inset-0 bg-teal-500/20 blur-3xl rounded-full animate-pulse"></div>
+            </div>
+            <h2 class="text-3xl font-black italic text-teal-400 uppercase tracking-tighter mb-2">Thank You</h2>
+            <p class="text-slate-500 text-xs uppercase tracking-[0.3em] animate-pulse">Closing Neural Link...</p>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

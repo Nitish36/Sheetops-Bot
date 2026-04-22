@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SheetOps | Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-[#0f172a] text-slate-200 h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md p-10 bg-slate-900/60 border border-slate-800 rounded-3xl backdrop-blur-xl shadow-2xl">
+        <h2 class="text-3xl font-black italic text-teal-400 mb-2 uppercase tracking-tighter text-center">Login</h2>
+        
+        {% if error %}<div class="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-xl mb-6">{{ error }}</div>{% endif %}
+
+        <!-- SIGN IN WITH GOOGLE -->
+        <a href="/login/google" class="w-full flex items-center justify-center gap-3 bg-white text-black py-3 rounded-xl font-bold hover:bg-slate-200 transition mb-6 uppercase text-xs tracking-widest">
+            <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5">
+            Sign in with Google
+        </a>
+
+        <div class="relative flex py-5 items-center">
+            <div class="flex-grow border-t border-slate-800"></div>
+            <span class="flex-shrink mx-4 text-slate-600 text-[10px] uppercase font-bold">Or Email Login</span>
+            <div class="flex-grow border-t border-slate-800"></div>
+        </div>
+
+        <form action="/login" method="POST" class="space-y-5">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="email" name="email" placeholder="Email" required class="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl focus:border-teal-500 outline-none transition">
+            <input type="password" name="password" placeholder="Password" required class="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl focus:border-teal-500 outline-none transition">
+            <button type="submit" class="w-full bg-teal-600 hover:bg-teal-500 text-[#0f172a] font-black py-4 rounded-2xl transition uppercase tracking-widest">Sign In</button>
+        </form>
+
+        <p class="mt-8 text-center text-xs text-slate-500">Need an account? <a href="/register" class="text-teal-400 font-bold">Register</a></p>
+    </div>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
