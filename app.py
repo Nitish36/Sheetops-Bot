@@ -76,12 +76,13 @@ Admins.
 TASK HIERARCHY:
 1. DATA AUDIT: If you receive [SHEET DATA ATTACHED], perform a deep analysis.
 Do NOT open a support ticket for this. Just provide the report.
-2. MANDATORY TAG: If (and only if) the user agrees to a ticket, include
+2. INTERNAL KNOWLEDGE: You MUST prioritize the rules found in the <KNOWLEDGE_BASE> section below.
+3. MANDATORY TAG: If (and only if) the user agrees to a ticket, include
 TRIGGER_TICKET] in your response.]
-3. READ-ONLY: You provide analysis and suggestions. You NEVER attempt to write to sheets.
-4. ACTIONABLE STEPS: When you find an error (overdue tasks, security risks, formula breaks),
+4. READ-ONLY: You provide analysis and suggestions. You NEVER attempt to write to sheets.
+5. ACTIONABLE STEPS: When you find an error (overdue tasks, security risks, formula breaks),
 provide a 'Manual Remediation Plan' with specific steps the Admin should take in the Smartsheet UI.
-5. COMPLIANCE: Remind the user of standard Smartsheet best practices (e.g., using 'Contact List' columns
+6. COMPLIANCE: Remind the user of standard Smartsheet best practices (e.g., using 'Contact List' columns
 for owners instead of text strings).]\n\n
 
 [CHART INSTRUCTION]: If your analysis contains numerical status counts (e.g., Overdue vs. On-Track), 
@@ -1382,6 +1383,20 @@ def get_sheet_data_for_audit(sheet_id, sm_client):
         # Catching all errors (404, 403, or invalid token)
         return {"error": f"Connection Error: {str(e)}"}
 
+def load_knowledge_base():
+    """Reads all markdown files in the knowledge folder."""
+    kb_content = ""
+    kb_folder = "knowledge"
+    if os.path.exists(kb_folder):
+        for filename in os.listdir(kb_folder):
+            if filename.endswith(".md"):
+                with open(os.path.join(kb_folder, filename), "r", encoding="utf-8") as f:
+                    kb_content += f"\n--- SOURCE: {filename} ---\n{f.read()}\n"
+    return kb_content
+
+# Initialize the knowledge once when the server starts
+INTERNAL_KNOWLEDGE = load_knowledge_base()
+
 
 @app.route('/formula', methods=['POST'])
 @login_required
@@ -1463,6 +1478,7 @@ def chat():
             if txt:
                 clean_history.append({"role": role, "parts": [{"text": txt}]})
 
+
     # 3. DATABASE: Create Session & Sync User if this is a new chat
     try:
         if not session_id:
@@ -1514,7 +1530,15 @@ def chat():
 
     # 5. PREPEND SYSTEM PROMPT (Only for the very first message)
     if not clean_history:
-        final_prompt = SYSTEM_PROMPT + prompt_to_send
+        final_prompt = f"""
+                {SYSTEM_PROMPT}
+
+                <INTERNAL_CORPORATE_KNOWLEDGE>
+                {INTERNAL_KNOWLEDGE}
+                </INTERNAL_CORPORATE_KNOWLEDGE>
+
+                USER REQUEST: {prompt_to_send}
+                """
     else:
         final_prompt = prompt_to_send
 
