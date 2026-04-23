@@ -85,6 +85,12 @@ provide a 'Manual Remediation Plan' with specific steps the Admin should take in
 6. COMPLIANCE: Remind the user of standard Smartsheet best practices (e.g., using 'Contact List' columns
 for owners instead of text strings).]\n\n
 
+[KNOWLEDGE MANAGEMENT RULES]:
+1. You have access to multiple internal documents labeled with <DOCUMENT_START>.
+2. If the user asks about Formulas or Syntax, prioritize info within 'formulas.md'.
+3. If the user asks about Naming or Permissions, prioritize 'governance.md'.
+4. When you cite a rule, mention the specific document name (e.g., 'Per our Formula Standards...').
+
 [CHART INSTRUCTION]: If your analysis contains numerical status counts (e.g., Overdue vs. On-Track), 
 you MUST append a JSON block at the very end of your response in this EXACT format:
 [CHART_DATA: {"labels": ["Label1", "Label2"], "values": [10, 5], "colors": ["#14b8a6", "#ef4444"]}]
@@ -1384,14 +1390,16 @@ def get_sheet_data_for_audit(sheet_id, sm_client):
         return {"error": f"Connection Error: {str(e)}"}
 
 def load_knowledge_base():
-    """Reads all markdown files in the knowledge folder."""
     kb_content = ""
     kb_folder = "knowledge"
     if os.path.exists(kb_folder):
         for filename in os.listdir(kb_folder):
             if filename.endswith(".md"):
+                # We add clear markers so the AI knows which 'Law Book' it is reading
+                kb_content += f"\n<DOCUMENT_START: {filename}>\n"
                 with open(os.path.join(kb_folder, filename), "r", encoding="utf-8") as f:
-                    kb_content += f"\n--- SOURCE: {filename} ---\n{f.read()}\n"
+                    kb_content += f.read()
+                kb_content += f"\n<DOCUMENT_END: {filename}>\n"
     return kb_content
 
 # Initialize the knowledge once when the server starts
