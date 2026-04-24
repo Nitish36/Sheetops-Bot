@@ -15,4 +15,5 @@ pandas
 flask-wtf
 cryptography
 Flask-Limiter
+boto3
 gunicorn
