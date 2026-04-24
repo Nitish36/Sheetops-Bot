@@ -11,6 +11,7 @@ import re
 import csv
 import json
 import io
+import boto3
 from psycopg2.extras import RealDictCursor
 import PyPDF2
 import docx
@@ -95,6 +96,11 @@ for owners instead of text strings).]\n\n
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
 Act as a mentor to help them navigate the 16 modules.
+
+[ADVANCED LEARNING & PREMIUM FEATURES]:
+When a user asks about scaling their solution or handling large datasets, reference 'asl.md' (Advanced Smartsheet Learning). 
+Explain how tools like Data Shuttle or DataTable solve limitations like row counts or manual data entry. 
+Maintain a strategic consultant tone for these topics.
 
 [COMMUNICATION STYLE]:
 1. Maintain your authoritative 'Lead Architect' tone. 
