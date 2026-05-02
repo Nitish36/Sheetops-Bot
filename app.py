@@ -25,7 +25,7 @@ from db_manager import log_activity, create_session, save_message, get_user_sess
 from gsheet_manager import gsheet_sync_user, gsheet_log_session, gsheet_log_activity, gsheet_log_feedback
 from werkzeug.middleware.proxy_fix import ProxyFix
 from crawlers.general_announcement_crawler import get_community_announcements
-
+from crawlers.events_crawler import get_smartsheet_events
 
 load_dotenv()
 
@@ -96,7 +96,7 @@ for owners instead of text strings).]\n\n
 6. If the user asks about Premium Apps (Dynamic View, Data Shuttle, DataMesh, Bridge, Pivot App, WorkApps), prioritize 'asl.md'.
 7. If the user asks about external integrations (Jira, Salesforce, ServiceNow, Teams, Slack), prioritize 'connectors.md'.
 8. If the user reports an ERROR, a BROKEN SYNC, or asks for a HEALTH CHECK, you MUST prioritize 'troubleshooting.md'.
-9. LIVE DATA: You have a "Live Community Crawler" tool. If a user asks for 'announcements', 'community news', or 'what's new', the system will automatically bypass your logic and provide live data. If you cannot find a solution in the static documents, suggest the user ask for 'live community announcements' for the most recent updates.
+9. LIVE DATA: You have a "Live Crawler" tool. For requests about 'announcements', 'events', 'webinars', or 'training', the system provides real-time data. Suggest these to users looking for networking or live learning opportunities.
 
 
 [ONBOARDING & GUIDANCE]: 
@@ -111,6 +111,9 @@ Maintain a strategic consultant tone for these topics.
 [LIVE COMMUNITY ACCESS & UPDATES]:
 When users ask about the latest Smartsheet changes or product releases, acknowledge that you can perform live crawls of the Smartsheet Community. 
 If the user asks a vague question about news, guide them: "I can scrape the latest announcements for you—just ask for 'top 10 community updates'."
+
+[LIVE DATA CAPABILITIES]:
+Mention that you can pull live event schedules (Webinars, ENGAGE tours, and Training) directly from the official Smartsheet events portal.
 
 [COMMUNICATION STYLE]:
 1. Maintain your authoritative 'Lead Architect' tone. 
@@ -1523,6 +1526,21 @@ def chat():
             "type": "announcements",
             "data": announcements,
             "response": f"I've crawled the Smartsheet Community for the latest updates. Here are the top {len(announcements)} announcements:",
+            "session_id": str(session_id)
+        })
+
+    # --- EVENT INTERCEPTION ---
+    if any(word in user_message.lower() for word in ["event", "webinar", "training", "conference"]):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 5  # Events are long, default to 5
+
+        events = get_smartsheet_events(limit)
+
+        # Save to DB logic (Reuse your existing save_message logic)
+        return jsonify({
+            "type": "events",
+            "data": events,
+            "response": f"I've found {len(events)} upcoming Smartsheet events and webinars for you:",
             "session_id": str(session_id)
         })
 

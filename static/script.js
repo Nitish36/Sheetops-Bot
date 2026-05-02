@@ -779,6 +779,33 @@ async function sendMessage() {
             cardsHTML += `</div>`;
             finalBotHTML = cardsHTML;
 
+        } else if (data.type === "events") {
+            let eventHTML = `<p class="mb-4 text-teal-400 font-semibold">${data.response}</p>
+                             <div class="grid grid-cols-1 gap-4">`;
+
+            data.data.forEach(item => {
+                eventHTML += `
+                    <div class="p-4 bg-slate-900/60 border border-slate-700 rounded-2xl relative overflow-hidden group">
+                        <div class="flex flex-col gap-2">
+                            <div class="flex justify-between items-start">
+                                <span class="px-2 py-0.5 bg-teal-500/20 text-teal-400 text-[10px] font-bold uppercase rounded-md border border-teal-500/30">
+                                    ${item.format}
+                                </span>
+                                <span class="text-[10px] text-slate-500 font-medium">${item.location}</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-slate-100 mt-1">${item.title}</h4>
+                            <div class="flex items-center gap-2 text-xs text-slate-400">
+                                <i data-lucide="calendar" class="w-3 h-3"></i>
+                                <span>${item.date}</span>
+                            </div>
+                            <a href="${item.link}" target="_blank" class="mt-3 w-full py-2 bg-teal-500 text-[#0f172a] text-center text-xs font-bold rounded-xl hover:bg-teal-400 transition-colors">
+                                Register Now
+                            </a>
+                        </div>
+                    </div>`;
+            });
+            eventHTML += `</div>`;
+            finalBotHTML = eventHTML;
         } else {
             // --- STANDARD BOT LOGIC (CHARTS & OPTIONS) ---
             let responseText = data.response;

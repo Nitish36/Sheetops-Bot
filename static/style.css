@@ -422,3 +422,20 @@ nav {
     margin: 0.5rem 0;
     display: block;
 }
+
+/* Event Badge & Button Styling */
+.event-card-container {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.event-card-container:hover {
+    border-color: rgba(20, 184, 166, 0.5);
+    background: rgba(15, 23, 42, 0.8);
+    transform: translateY(-2px);
+}
+
+/* Ensure the calendar icon and other Lucide icons in cards are centered */
+.event-card-container i {
+    display: inline-block;
+    vertical-align: middle;
+}
