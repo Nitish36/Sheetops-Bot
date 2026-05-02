@@ -24,6 +24,7 @@ from cryptography.fernet import Fernet
 from db_manager import log_activity, create_session, save_message, get_user_sessions, get_session_messages, create_user, verify_user_login, get_user_by_id, get_db_connection, get_executive_stats
 from gsheet_manager import gsheet_sync_user, gsheet_log_session, gsheet_log_activity, gsheet_log_feedback
 from werkzeug.middleware.proxy_fix import ProxyFix
+from crawlers.general_announcement_crawler import get_community_announcements
 
 
 load_dotenv()
@@ -95,6 +96,8 @@ for owners instead of text strings).]\n\n
 6. If the user asks about Premium Apps (Dynamic View, Data Shuttle, DataMesh, Bridge, Pivot App, WorkApps), prioritize 'asl.md'.
 7. If the user asks about external integrations (Jira, Salesforce, ServiceNow, Teams, Slack), prioritize 'connectors.md'.
 8. If the user reports an ERROR, a BROKEN SYNC, or asks for a HEALTH CHECK, you MUST prioritize 'troubleshooting.md'.
+9. LIVE DATA: You have a "Live Community Crawler" tool. If a user asks for 'announcements', 'community news', or 'what's new', the system will automatically bypass your logic and provide live data. If you cannot find a solution in the static documents, suggest the user ask for 'live community announcements' for the most recent updates.
+
 
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -104,6 +107,10 @@ Act as a mentor to help them navigate the 16 modules.
 When a user asks about scaling their solution or handling large datasets, reference 'asl.md' (Advanced Smartsheet Learning). 
 Explain how tools like Data Shuttle or DataTable solve limitations like row counts or manual data entry. 
 Maintain a strategic consultant tone for these topics.
+
+[LIVE COMMUNITY ACCESS & UPDATES]:
+When users ask about the latest Smartsheet changes or product releases, acknowledge that you can perform live crawls of the Smartsheet Community. 
+If the user asks a vague question about news, guide them: "I can scrape the latest announcements for you—just ask for 'top 10 community updates'."
 
 [COMMUNICATION STYLE]:
 1. Maintain your authoritative 'Lead Architect' tone. 
@@ -1495,6 +1502,29 @@ def chat():
     # If the user wants to start a ticket OR is already in the middle of one
     if user_message == "INITIATE_HC_TICKET_FLOW" or t_state is not None:
         return handle_ticketing_flow(user_message, session_id)
+
+    # --- NEW: COMMUNITY ANNOUNCEMENT INTERCEPTION ---
+    # Detects keywords like 'announcement', 'community news', 'whats new'
+    if any(word in user_message.lower() for word in ["announcement", "community news", "what's new"]):
+        # Extract number if user specified (e.g., "Give me 5 announcements")
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+
+        # This triggers the "Progress Bar" state on the frontend
+        announcements = get_community_announcements(limit)
+
+        # Save this interaction to DB before returning
+        if not session_id:
+            session_id = create_session(current_user.id, "Community Scrape", "chats")
+        save_message(session_id, "user", user_message)
+        save_message(session_id, "model", f"Scraped {len(announcements)} announcements.")
+
+        return jsonify({
+            "type": "announcements",
+            "data": announcements,
+            "response": f"I've crawled the Smartsheet Community for the latest updates. Here are the top {len(announcements)} announcements:",
+            "session_id": str(session_id)
+        })
 
     # 2. STRICT HISTORY CLEANER (Ensures Gemini 3 never gets malformed data)
     clean_history = []

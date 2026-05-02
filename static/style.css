@@ -370,3 +370,55 @@ nav {
     /* Adding a subtle glow to the box */
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(239, 68, 68, 0.1);
 }
+
+/* --- Community Announcement Cards --- */
+.announcement-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+/* Matching your dashboard's slate/teal aesthetic */
+.announcement-card {
+    background: rgba(15, 23, 42, 0.6); /* slate-900/60 */
+    border: 1px solid rgba(51, 65, 85, 1); /* slate-700 */
+    padding: 1rem;
+    border-radius: 0.75rem; /* rounded-xl */
+    text-decoration: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.announcement-card:hover {
+    border-color: rgba(20, 184, 166, 0.5); /* teal-500/50 */
+    background: rgba(20, 184, 166, 0.05); /* very subtle teal tint */
+    transform: translateX(4px);
+}
+
+.announcement-card-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #e2e8f0; /* slate-200 */
+    line-height: 1.25rem;
+}
+
+.announcement-card:hover .announcement-card-title {
+    color: #14b8a6; /* teal-400 */
+}
+
+/* --- Bot Thinking Spinner (Tailwind fallback) --- */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.animate-spin-custom {
+    animation: spin 1s linear infinite;
+}
+
+/* Formatting for the Bot Text Content specifically */
+.bot-text-content br {
+    content: "";
+    margin: 0.5rem 0;
+    display: block;
+}
