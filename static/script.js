@@ -827,6 +827,27 @@ async function sendMessage() {
             });
             prodHTML += `</div>`;
             finalBotHTML = prodHTML;
+        }else if (data.type === "pmo_trends") {
+            let pmoHTML = `<p class="mb-4 text-indigo-400 font-semibold">${data.response}</p>
+                           <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                pmoHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-indigo-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 text-[8px] font-bold uppercase rounded border border-indigo-500/30">
+                                PMO Strategy
+                            </span>
+                            <i data-lucide="trending-up" class="w-3 h-3 text-indigo-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-indigo-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-indigo-400"></i>
+                        </div>
+                    </a>`;
+            });
+            pmoHTML += `</div>`;
+            finalBotHTML = pmoHTML;
         }else {
             // --- STANDARD BOT LOGIC (CHARTS & OPTIONS) ---
             let responseText = data.response;

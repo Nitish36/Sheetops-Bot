@@ -5,36 +5,30 @@ from urllib.parse import urljoin
 
 urllib3.disable_warnings()
 
-links = []
-for i in range(1,12,1):
-    url = f"https://community.smartsheet.com/categories/project-management-office-(pmo)/p{i}/?sort=hot"
-    base = "https://community.smartsheet.com"
-
+def get_pmo_trends(limit=10):
+    cleaned = []
+    seen = set()
     headers = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-    }
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
 
-    resp = requests.get(url, headers=headers, verify=False)
-    resp.raise_for_status()
+    # We use sort=hot as per your script to get trending topics
+    for i in range(1, 4):
+        url = f"https://community.smartsheet.com/categories/project-management-office-(pmo)/p{i}/?sort=hot"
+        try:
+            resp = requests.get(url, headers=headers, timeout=10, verify=False)
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for a in soup.select("a[href]"):
+                href = a["href"]
+                text = a.get_text(strip=True)
+                if text and "/discussion/" in href:
+                    full_url = urljoin("https://community.smartsheet.com", href)
+                    if full_url not in seen:
+                        cleaned.append({"title": text, "link": full_url})
+                        seen.add(full_url)
+                if len(cleaned) >= limit: break
+        except Exception as e:
+            print(f"PMO Crawler error: {e}")
+            break
+        if len(cleaned) >= limit: break
 
-    soup = BeautifulSoup(resp.text, "html.parser")
-
-    # Get all discussion links (this will capture many; we filter to meaningful ones)
-
-    for a in soup.select("a[href]"):
-        href = a["href"]
-        text = a.get_text(strip=True)
-        if text and "/discussion/" in href:   # common pattern in many Vanilla forums
-            links.append((text, urljoin(base, href)))
-
-# De-duplicate while preserving order
-seen = set()
-cleaned = []
-for title, link in links:
-    if link not in seen:
-        cleaned.append((title, link))
-        seen.add(link)
-
-print("Found:", len(cleaned))
-for x in cleaned:
-    print(x)
+    return cleaned[:limit]

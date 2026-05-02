@@ -27,6 +27,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from crawlers.general_announcement_crawler import get_community_announcements
 from crawlers.events_crawler import get_smartsheet_events
 from crawlers.product_announcement_crawler import get_product_updates
+from crawlers.pmo_crawler import get_pmo_trends
 
 load_dotenv()
 
@@ -98,10 +99,11 @@ for owners instead of text strings).]\n\n
 7. If the user asks about external integrations (Jira, Salesforce, ServiceNow, Teams, Slack), prioritize 'connectors.md'.
 8. If the user reports an ERROR, a BROKEN SYNC, or asks for a HEALTH CHECK, you MUST prioritize 'troubleshooting.md'.
 9. LIVE DATA: You have a "Live Crawler" tool.
-   For general updates, use 'announcements'.
-   For software/feature updates, use 'product releases' or 'new features'.
-   For training, use 'events' or 'webinars'.
-   Suggest 'product releases' to users who are asking if Smartsheet has added a specific capability recently.
+    For general updates, use 'announcements'.
+    For feature/software updates, use 'product releases'.
+    For training, use 'events'.
+    For PMO governance or trending project management advice, use 'PMO trends'.
+    Suggest 'PMO trends' to users who are asking about how other organizations are managing their project portfolios.
 
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -1559,6 +1561,20 @@ def chat():
             "type": "product_news",
             "data": updates,
             "response": f"I've pulled the latest {len(updates)} Product Announcements and feature releases for you:",
+            "session_id": str(session_id)
+        })
+
+    # Check for PMO / Trending topics
+    pmo_keywords = ["pmo", "project management office", "pmo trends", "pmo advice", "pmo best practices"]
+    if any(word in user_message.lower() for word in pmo_keywords):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+        trends = get_pmo_trends(limit)
+
+        return jsonify({
+            "type": "pmo_trends",
+            "data": trends,
+            "response": f"I've analyzed the latest trending PMO discussions for you. Here are the top {len(trends)} 'Hot' topics:",
             "session_id": str(session_id)
         })
 
