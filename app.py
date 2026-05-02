@@ -32,6 +32,8 @@ from crawlers.healthcare_ls_crawler import get_healthcare_trends
 from crawlers.financial_services_crawler import get_finance_trends
 from crawlers.digital_it import get_it_trends
 from crawlers.best_practices_crawler import get_best_practices
+from crawlers.b2b_crawler import get_b2b_trends
+
 load_dotenv()
 
 app = Flask(__name__,template_folder='template')
@@ -110,7 +112,8 @@ for owners instead of text strings).]\n\n
     For Finance, use 'Financial trends'.
     For IT, Software Development, or Digital Transformation, use 'IT trends'.
     For optimization and standards, use 'best practices'.
-    Suggest 'best practices' to users who want to know the most efficient way to build their sheets.
+    For vendor management or client-facing operations, use 'B2B trends'.
+    Suggest 'B2B trends' to users managing external partners or cross-company projects.
     
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -1642,6 +1645,19 @@ def chat():
             "session_id": str(session_id)
         })
 
+    # Check for B2B / Enterprise Work Management topics
+    b2b_keywords = ["b2b", "vendor management", "client project", "external collaboration", "enterprise work"]
+    if any(word in user_message.lower() for word in b2b_keywords):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+        trends = get_b2b_trends(limit)
+
+        return jsonify({
+            "type": "b2b_trends",
+            "data": trends,
+            "response": f"I've pulled the trending B2B Work Management discussions. Here are the top {len(trends)} topics for enterprise collaboration:",
+            "session_id": str(session_id)
+        })
 
     # 2. STRICT HISTORY CLEANER (Ensures Gemini 3 never gets malformed data)
     clean_history = []

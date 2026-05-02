@@ -932,6 +932,27 @@ async function sendMessage() {
             });
             bpHTML += `</div>`;
             finalBotHTML = bpHTML;
+        }else if (data.type === "b2b_trends") {
+            let b2bHTML = `<p class="mb-4 text-rose-400 font-semibold">${data.response}</p>
+                          <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                b2bHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-rose-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-rose-500/20 text-rose-400 text-[8px] font-bold uppercase rounded border border-rose-500/30">
+                                B2B Operations
+                            </span>
+                            <i data-lucide="briefcase" class="w-3 h-3 text-rose-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-rose-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-rose-400"></i>
+                        </div>
+                    </a>`;
+            });
+            b2bHTML += `</div>`;
+            finalBotHTML = b2bHTML;
         }else {
             // --- STANDARD BOT LOGIC (CHARTS & OPTIONS) ---
             let responseText = data.response;

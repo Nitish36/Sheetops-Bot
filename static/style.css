@@ -480,3 +480,10 @@ nav {
 .border-sky-500\/30 { border-color: rgba(14, 165, 233, 0.3); }
 .hover\:border-sky-500\/50:hover { border-color: rgba(14, 165, 233, 0.5); }
 .group-hover\:text-sky-400:group-hover { color: rgba(56, 189, 248, 1); }
+
+/* Rose theme for B2B Trends */
+.bg-rose-500\/20 { background-color: rgba(244, 63, 94, 0.2); }
+.text-rose-400 { color: rgba(251, 113, 133, 1); }
+.border-rose-500\/30 { border-color: rgba(244, 63, 94, 0.3); }
+.hover\:border-rose-500\/50:hover { border-color: rgba(244, 63, 94, 0.5); }
+.group-hover\:text-rose-400:group-hover { color: rgba(251, 113, 133, 1); }
