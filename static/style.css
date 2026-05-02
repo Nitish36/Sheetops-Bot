@@ -466,3 +466,10 @@ nav {
 .border-amber-500\/30 { border-color: rgba(245, 158, 11, 0.3); }
 .hover\:border-amber-500\/50:hover { border-color: rgba(245, 158, 11, 0.5); }
 .group-hover\:text-amber-400:group-hover { color: rgba(251, 191, 36, 1); }
+
+/* Violet theme for IT Trends */
+.bg-violet-500\/20 { background-color: rgba(139, 92, 246, 0.2); }
+.text-violet-400 { color: rgba(167, 139, 250, 1); }
+.border-violet-500\/30 { border-color: rgba(139, 92, 246, 0.3); }
+.hover\:border-violet-500\/50:hover { border-color: rgba(139, 92, 246, 0.5); }
+.group-hover\:text-violet-400:group-hover { color: rgba(167, 139, 250, 1); }

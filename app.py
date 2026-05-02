@@ -30,6 +30,7 @@ from crawlers.product_announcement_crawler import get_product_updates
 from crawlers.pmo_crawler import get_pmo_trends
 from crawlers.healthcare_ls_crawler import get_healthcare_trends
 from crawlers.financial_services_crawler import get_finance_trends
+from crawlers.digital_it import get_it_trends
 load_dotenv()
 
 app = Flask(__name__,template_folder='template')
@@ -105,9 +106,10 @@ for owners instead of text strings).]\n\n
     For training, use 'events'.
     For PMO governance, use 'PMO trends'.
     For Healthcare, use 'Healthcare trends'.
-    For Banking, Insurance, or Audit advice, use 'Financial trends'.
-    Suggest 'Financial trends' to users working in the financial sector or managing high-budget portfolios.
-
+    For Finance, use 'Financial trends'.
+    For IT, Software Development, or Digital Transformation, use 'IT trends'.
+    Suggest 'IT trends' to technical project managers or IT leads.
+    
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
 Act as a mentor to help them navigate the 16 modules.
@@ -1607,6 +1609,20 @@ def chat():
             "type": "finance_trends",
             "data": trends,
             "response": f"I've retrieved the latest trending Financial Services discussions for you. Here are the top {len(trends)} topics:",
+            "session_id": str(session_id)
+        })
+
+    # Check for IT / Digital Transformation topics
+    it_keywords = ["digital", " it ", "tech", "software", "sdlc", "infrastructure", "digital transformation", "it pmo"]
+    if any(word in user_message.lower() for word in it_keywords):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+        trends = get_it_trends(limit)
+
+        return jsonify({
+            "type": "it_trends",
+            "data": trends,
+            "response": f"I've analyzed the latest trending Digital IT & Portfolio discussions. Here are the top {len(trends)} topics:",
             "session_id": str(session_id)
         })
 
