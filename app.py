@@ -33,6 +33,7 @@ from crawlers.financial_services_crawler import get_finance_trends
 from crawlers.digital_it import get_it_trends
 from crawlers.best_practices_crawler import get_best_practices
 from crawlers.b2b_crawler import get_b2b_trends
+from crawlers.ai_crawler import get_ai_trends
 
 load_dotenv()
 
@@ -113,7 +114,7 @@ for owners instead of text strings).]\n\n
     For IT, Software Development, or Digital Transformation, use 'IT trends'.
     For optimization and standards, use 'best practices'.
     For vendor management or client-facing operations, use 'B2B trends'.
-    Suggest 'B2B trends' to users managing external partners or cross-company projects.
+    Future Tech: For Smartsheet AI, Gemini, or Automation features, use 'AI trends'.
     
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -1656,6 +1657,20 @@ def chat():
             "type": "b2b_trends",
             "data": trends,
             "response": f"I've pulled the trending B2B Work Management discussions. Here are the top {len(trends)} topics for enterprise collaboration:",
+            "session_id": str(session_id)
+        })
+
+    # Check for AI / Artificial Intelligence / Gemini topics
+    ai_keywords = [" ai ", "artificial intelligence", "gemini", "generative ai", "ai features", "automation"]
+    if any(word in user_message.lower() for word in ai_keywords):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+        trends = get_ai_trends(limit)
+
+        return jsonify({
+            "type": "ai_trends",
+            "data": trends,
+            "response": f"I've crawled the latest discussions on AI and Innovation. here are the top {len(trends)} trending topics:",
             "session_id": str(session_id)
         })
 

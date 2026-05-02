@@ -487,3 +487,10 @@ nav {
 .border-rose-500\/30 { border-color: rgba(244, 63, 94, 0.3); }
 .hover\:border-rose-500\/50:hover { border-color: rgba(244, 63, 94, 0.5); }
 .group-hover\:text-rose-400:group-hover { color: rgba(251, 113, 133, 1); }
+
+/* Fuchsia theme for AI Trends */
+.bg-fuchsia-500\/20 { background-color: rgba(217, 70, 239, 0.2); }
+.text-fuchsia-400 { color: rgba(232, 121, 249, 1); }
+.border-fuchsia-500\/30 { border-color: rgba(217, 70, 239, 0.3); }
+.hover\:border-fuchsia-500\/50:hover { border-color: rgba(217, 70, 239, 0.5); }
+.group-hover\:text-fuchsia-400:group-hover { color: rgba(232, 121, 249, 1); }
