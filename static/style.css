@@ -439,3 +439,9 @@ nav {
     display: inline-block;
     vertical-align: middle;
 }
+/* Blue theme for Product News */
+.bg-blue-500\/20 { background-color: rgba(59, 130, 246, 0.2); }
+.text-blue-400 { color: rgba(96, 165, 250, 1); }
+.border-blue-500\/30 { border-color: rgba(59, 130, 246, 0.3); }
+.hover\:border-blue-500\/50:hover { border-color: rgba(59, 130, 246, 0.5); }
+.group-hover\:text-blue-400:group-hover { color: rgba(96, 165, 250, 1); }

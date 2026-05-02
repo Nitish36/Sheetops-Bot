@@ -26,6 +26,7 @@ from gsheet_manager import gsheet_sync_user, gsheet_log_session, gsheet_log_acti
 from werkzeug.middleware.proxy_fix import ProxyFix
 from crawlers.general_announcement_crawler import get_community_announcements
 from crawlers.events_crawler import get_smartsheet_events
+from crawlers.product_announcement_crawler import get_product_updates
 
 load_dotenv()
 
@@ -96,8 +97,11 @@ for owners instead of text strings).]\n\n
 6. If the user asks about Premium Apps (Dynamic View, Data Shuttle, DataMesh, Bridge, Pivot App, WorkApps), prioritize 'asl.md'.
 7. If the user asks about external integrations (Jira, Salesforce, ServiceNow, Teams, Slack), prioritize 'connectors.md'.
 8. If the user reports an ERROR, a BROKEN SYNC, or asks for a HEALTH CHECK, you MUST prioritize 'troubleshooting.md'.
-9. LIVE DATA: You have a "Live Crawler" tool. For requests about 'announcements', 'events', 'webinars', or 'training', the system provides real-time data. Suggest these to users looking for networking or live learning opportunities.
-
+9. LIVE DATA: You have a "Live Crawler" tool.
+   For general updates, use 'announcements'.
+   For software/feature updates, use 'product releases' or 'new features'.
+   For training, use 'events' or 'webinars'.
+   Suggest 'product releases' to users who are asking if Smartsheet has added a specific capability recently.
 
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -1541,6 +1545,20 @@ def chat():
             "type": "events",
             "data": events,
             "response": f"I've found {len(events)} upcoming Smartsheet events and webinars for you:",
+            "session_id": str(session_id)
+        })
+
+    # 1. Check for Product Specific News first
+    product_keywords = ["product release", "new feature", "product announcement", "updates"]
+    if any(word in user_message.lower() for word in product_keywords):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+        updates = get_product_updates(limit)
+
+        return jsonify({
+            "type": "product_news",
+            "data": updates,
+            "response": f"I've pulled the latest {len(updates)} Product Announcements and feature releases for you:",
             "session_id": str(session_id)
         })
 
