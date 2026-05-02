@@ -452,3 +452,10 @@ nav {
 .border-indigo-500\/30 { border-color: rgba(99, 102, 241, 0.3); }
 .hover\:border-indigo-500\/50:hover { border-color: rgba(99, 102, 241, 0.5); }
 .group-hover\:text-indigo-400:group-hover { color: rgba(129, 140, 248, 1); }
+
+/* Emerald theme for Healthcare Trends */
+.bg-emerald-500\/20 { background-color: rgba(16, 185, 129, 0.2); }
+.text-emerald-400 { color: rgba(52, 211, 153, 1); }
+.border-emerald-500\/30 { border-color: rgba(16, 185, 129, 0.3); }
+.hover\:border-emerald-500\/50:hover { border-color: rgba(16, 185, 129, 0.5); }
+.group-hover\:text-emerald-400:group-hover { color: rgba(52, 211, 153, 1); }

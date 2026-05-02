@@ -28,6 +28,7 @@ from crawlers.general_announcement_crawler import get_community_announcements
 from crawlers.events_crawler import get_smartsheet_events
 from crawlers.product_announcement_crawler import get_product_updates
 from crawlers.pmo_crawler import get_pmo_trends
+from crawlers.healthcare_ls_crawler import get_healthcare_trends
 
 load_dotenv()
 
@@ -102,8 +103,9 @@ for owners instead of text strings).]\n\n
     For general updates, use 'announcements'.
     For feature/software updates, use 'product releases'.
     For training, use 'events'.
-    For PMO governance or trending project management advice, use 'PMO trends'.
-    Suggest 'PMO trends' to users who are asking about how other organizations are managing their project portfolios.
+    For PMO governance, use 'PMO trends'.
+    For Healthcare, HIPAA, or Life Sciences specific advice, use 'Healthcare trends'.
+    Suggest 'Healthcare trends' to users working in medical, pharmaceutical, or clinical environments.
 
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -1575,6 +1577,21 @@ def chat():
             "type": "pmo_trends",
             "data": trends,
             "response": f"I've analyzed the latest trending PMO discussions for you. Here are the top {len(trends)} 'Hot' topics:",
+            "session_id": str(session_id)
+        })
+
+    # Check for Healthcare / Life Sciences topics
+    hc_keywords = ["healthcare", "life sciences", "medical", "hipaa", "clinical", "pharma", "patient"]
+
+    if any(word in user_message.lower() for word in hc_keywords):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+        trends = get_healthcare_trends(limit)
+
+        return jsonify({
+            "type": "healthcare_trends",
+            "data": trends,
+            "response": f"I've pulled the latest trending Healthcare & Life Sciences discussions for you. Here are the top {len(trends)} topics:",
             "session_id": str(session_id)
         })
 
