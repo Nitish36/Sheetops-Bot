@@ -31,6 +31,7 @@ from crawlers.pmo_crawler import get_pmo_trends
 from crawlers.healthcare_ls_crawler import get_healthcare_trends
 from crawlers.financial_services_crawler import get_finance_trends
 from crawlers.digital_it import get_it_trends
+from crawlers.best_practices_crawler import get_best_practices
 load_dotenv()
 
 app = Flask(__name__,template_folder='template')
@@ -108,7 +109,8 @@ for owners instead of text strings).]\n\n
     For Healthcare, use 'Healthcare trends'.
     For Finance, use 'Financial trends'.
     For IT, Software Development, or Digital Transformation, use 'IT trends'.
-    Suggest 'IT trends' to technical project managers or IT leads.
+    For optimization and standards, use 'best practices'.
+    Suggest 'best practices' to users who want to know the most efficient way to build their sheets.
     
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -1623,6 +1625,20 @@ def chat():
             "type": "it_trends",
             "data": trends,
             "response": f"I've analyzed the latest trending Digital IT & Portfolio discussions. Here are the top {len(trends)} topics:",
+            "session_id": str(session_id)
+        })
+
+    # Check for Best Practices / Optimization topics
+    bp_keywords = ["best practice", "optimization", "efficiency", "how to improve", "expert advice", "standards"]
+    if any(word in user_message.lower() for word in bp_keywords):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+        practices = get_best_practices(limit)
+
+        return jsonify({
+            "type": "best_practices",
+            "data": practices,
+            "response": f"I've curated the latest expert Best Practices from the community. Here are the top {len(practices)} optimization topics:",
             "session_id": str(session_id)
         })
 
