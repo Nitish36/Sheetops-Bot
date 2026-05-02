@@ -459,3 +459,10 @@ nav {
 .border-emerald-500\/30 { border-color: rgba(16, 185, 129, 0.3); }
 .hover\:border-emerald-500\/50:hover { border-color: rgba(16, 185, 129, 0.5); }
 .group-hover\:text-emerald-400:group-hover { color: rgba(52, 211, 153, 1); }
+
+/* Amber theme for Financial Trends */
+.bg-amber-500\/20 { background-color: rgba(245, 158, 11, 0.2); }
+.text-amber-400 { color: rgba(251, 191, 36, 1); }
+.border-amber-500\/30 { border-color: rgba(245, 158, 11, 0.3); }
+.hover\:border-amber-500\/50:hover { border-color: rgba(245, 158, 11, 0.5); }
+.group-hover\:text-amber-400:group-hover { color: rgba(251, 191, 36, 1); }

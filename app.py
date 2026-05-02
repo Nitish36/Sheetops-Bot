@@ -29,7 +29,7 @@ from crawlers.events_crawler import get_smartsheet_events
 from crawlers.product_announcement_crawler import get_product_updates
 from crawlers.pmo_crawler import get_pmo_trends
 from crawlers.healthcare_ls_crawler import get_healthcare_trends
-
+from crawlers.financial_services_crawler import get_finance_trends
 load_dotenv()
 
 app = Flask(__name__,template_folder='template')
@@ -104,8 +104,9 @@ for owners instead of text strings).]\n\n
     For feature/software updates, use 'product releases'.
     For training, use 'events'.
     For PMO governance, use 'PMO trends'.
-    For Healthcare, HIPAA, or Life Sciences specific advice, use 'Healthcare trends'.
-    Suggest 'Healthcare trends' to users working in medical, pharmaceutical, or clinical environments.
+    For Healthcare, use 'Healthcare trends'.
+    For Banking, Insurance, or Audit advice, use 'Financial trends'.
+    Suggest 'Financial trends' to users working in the financial sector or managing high-budget portfolios.
 
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -1594,6 +1595,21 @@ def chat():
             "response": f"I've pulled the latest trending Healthcare & Life Sciences discussions for you. Here are the top {len(trends)} topics:",
             "session_id": str(session_id)
         })
+
+    # Check for Financial Services / Banking topics
+    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting", "audit"]
+    if any(word in user_message.lower() for word in finance_keywords):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+        trends = get_finance_trends(limit)
+
+        return jsonify({
+            "type": "finance_trends",
+            "data": trends,
+            "response": f"I've retrieved the latest trending Financial Services discussions for you. Here are the top {len(trends)} topics:",
+            "session_id": str(session_id)
+        })
+
 
     # 2. STRICT HISTORY CLEANER (Ensures Gemini 3 never gets malformed data)
     clean_history = []
