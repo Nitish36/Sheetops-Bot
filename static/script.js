@@ -974,6 +974,27 @@ async function sendMessage() {
             });
             aiHTML += `</div>`;
             finalBotHTML = aiHTML;
+        }else if (data.type === "unanswered_questions") {
+            let helpHTML = `<p class="mb-4 text-orange-400 font-semibold">${data.response}</p>
+                           <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                helpHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-orange-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-orange-500/20 text-orange-400 text-[8px] font-bold uppercase rounded border border-orange-500/30">
+                                Needs Answer
+                            </span>
+                            <i data-lucide="help-circle" class="w-3 h-3 text-orange-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-orange-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-orange-400"></i>
+                        </div>
+                    </a>`;
+            });
+            helpHTML += `</div>`;
+            finalBotHTML = helpHTML;
         }else {
             // --- STANDARD BOT LOGIC (CHARTS & OPTIONS) ---
             let responseText = data.response;

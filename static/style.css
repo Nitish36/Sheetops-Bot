@@ -494,3 +494,10 @@ nav {
 .border-fuchsia-500\/30 { border-color: rgba(217, 70, 239, 0.3); }
 .hover\:border-fuchsia-500\/50:hover { border-color: rgba(217, 70, 239, 0.5); }
 .group-hover\:text-fuchsia-400:group-hover { color: rgba(232, 121, 249, 1); }
+
+/* Orange theme for Unanswered Questions */
+.bg-orange-500\/20 { background-color: rgba(249, 115, 22, 0.2); }
+.text-orange-400 { color: rgba(251, 146, 60, 1); }
+.border-orange-500\/30 { border-color: rgba(249, 115, 22, 0.3); }
+.hover\:border-orange-500\/50:hover { border-color: rgba(249, 115, 22, 0.5); }
+.group-hover\:text-orange-400:group-hover { color: rgba(251, 146, 60, 1); }

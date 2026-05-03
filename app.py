@@ -34,6 +34,7 @@ from crawlers.digital_it import get_it_trends
 from crawlers.best_practices_crawler import get_best_practices
 from crawlers.b2b_crawler import get_b2b_trends
 from crawlers.ai_crawler import get_ai_trends
+from crawlers.unanswered import get_unanswered_questions
 
 load_dotenv()
 
@@ -115,6 +116,7 @@ for owners instead of text strings).]\n\n
     For optimization and standards, use 'best practices'.
     For vendor management or client-facing operations, use 'B2B trends'.
     Future Tech: For Smartsheet AI, Gemini, or Automation features, use 'AI trends'.
+    Community Contribution: For unanswered questions or users wanting to help others, use 'unanswered questions'.
     
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -1671,6 +1673,20 @@ def chat():
             "type": "ai_trends",
             "data": trends,
             "response": f"I've crawled the latest discussions on AI and Innovation. here are the top {len(trends)} trending topics:",
+            "session_id": str(session_id)
+        })
+
+    # Check for Unanswered / Help needed topics
+    help_keywords = ["unanswered", "no replies", "help others", "unresolved", "community help"]
+    if any(word in user_message.lower() for word in help_keywords):
+        num_match = re.search(r'\d+', user_message)
+        limit = int(num_match.group()) if num_match else 10
+        questions = get_unanswered_questions(limit)
+
+        return jsonify({
+            "type": "unanswered_questions",
+            "data": questions,
+            "response": f"I've found {len(questions)} recent discussions that haven't received an answer yet. Here's where the community needs your help:",
             "session_id": str(session_id)
         })
 
