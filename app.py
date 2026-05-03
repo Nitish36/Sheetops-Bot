@@ -6,6 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from authlib.integrations.flask_client import OAuth
 from google import genai
 from google.genai import types
+import numpy as np
 from dotenv import load_dotenv
 import re
 import csv
@@ -415,6 +416,67 @@ class User(UserMixin):
         self.username = username
         self.name = name if name else username  # Fallback if name is null
         self.plan = plan
+
+class SimpleRAG:
+    def __init__(self, knowledge_dir="knowledge"):
+        self.knowledge_dir = knowledge_dir
+        self.chunks = []
+        self.embeddings = []
+
+    def load_and_index(self):
+        """Reads all .md files and generates embeddings for chunks."""
+        self.chunks = []
+        self.embeddings = []
+
+        for filename in os.listdir(self.knowledge_dir):
+            if filename.endswith(".md"):
+                with open(os.path.join(self.knowledge_dir, filename), 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    # Split by double newline to get sections/paragraphs
+                    sections = content.split('\n\n')
+                    for section in sections:
+                        if len(section.strip()) > 20:  # Skip tiny fragments
+                            self.chunks.append({
+                                "source": filename,
+                                "text": section.strip()
+                            })
+
+        # Generate embeddings in bulk for all chunks
+        for chunk in self.chunks:
+            result = client.models.embed_content(
+                model="text-embedding-004",  # Optimized for RAG
+                contents=chunk["text"]
+            )
+            self.embeddings.append(result.embeddings[0].values)
+
+        print(f"Indexed {len(self.chunks)} chunks from {self.knowledge_dir}")
+
+    def retrieve(self, query, top_k=3):
+        """Finds the most relevant chunks for a user query."""
+        query_embedding = client.models.embed_content(
+            model="text-embedding-004",
+            contents=query
+        ).embeddings[0].values
+
+        # Calculate Cosine Similarity
+        similarities = [np.dot(query_embedding, emb) for emb in self.embeddings]
+
+        # Get top K indices
+        top_indices = np.argsort(similarities)[-top_k:][::-1]
+
+        context = ""
+        for idx in top_indices:
+            source = self.chunks[idx]['source']
+            text = self.chunks[idx]['text']
+            context += f"\n[From {source}]:\n{text}\n"
+
+        return context
+
+
+# Initialize the RAG
+rag = SimpleRAG()
+# Run this once when the server starts
+rag.load_and_index()
 
 
 def get_sm_client():
