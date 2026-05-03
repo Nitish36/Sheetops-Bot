@@ -6,7 +6,6 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from authlib.integrations.flask_client import OAuth
 from google import genai
 from google.genai import types
-import numpy as np
 from dotenv import load_dotenv
 import re
 import csv
@@ -415,67 +414,6 @@ class User(UserMixin):
         self.username = username
         self.name = name if name else username  # Fallback if name is null
         self.plan = plan
-
-class SimpleRAG:
-    def __init__(self, knowledge_dir="knowledge"):
-        self.knowledge_dir = knowledge_dir
-        self.chunks = []
-        self.embeddings = []
-
-    def load_and_index(self):
-        """Reads all .md files and generates embeddings for chunks."""
-        self.chunks = []
-        self.embeddings = []
-
-        for filename in os.listdir(self.knowledge_dir):
-            if filename.endswith(".md"):
-                with open(os.path.join(self.knowledge_dir, filename), 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    # Split by double newline to get sections/paragraphs
-                    sections = content.split('\n\n')
-                    for section in sections:
-                        if len(section.strip()) > 20:  # Skip tiny fragments
-                            self.chunks.append({
-                                "source": filename,
-                                "text": section.strip()
-                            })
-
-        # Generate embeddings in bulk for all chunks
-        for chunk in self.chunks:
-            result = client.models.embed_content(
-                model="text-embedding-004",  # Optimized for RAG
-                contents=chunk["text"]
-            )
-            self.embeddings.append(result.embeddings[0].values)
-
-        print(f"Indexed {len(self.chunks)} chunks from {self.knowledge_dir}")
-
-    def retrieve(self, query, top_k=3):
-        """Finds the most relevant chunks for a user query."""
-        query_embedding = client.models.embed_content(
-            model="text-embedding-004",
-            contents=query
-        ).embeddings[0].values
-
-        # Calculate Cosine Similarity
-        similarities = [np.dot(query_embedding, emb) for emb in self.embeddings]
-
-        # Get top K indices
-        top_indices = np.argsort(similarities)[-top_k:][::-1]
-
-        context = ""
-        for idx in top_indices:
-            source = self.chunks[idx]['source']
-            text = self.chunks[idx]['text']
-            context += f"\n[From {source}]:\n{text}\n"
-
-        return context
-
-
-# Initialize the RAG
-rag = SimpleRAG()
-# Run this once when the server starts
-rag.load_and_index()
 
 
 def get_sm_client():
@@ -1505,7 +1443,7 @@ def get_sheet_data_for_audit(sheet_id, sm_client):
         # Catching all errors (404, 403, or invalid token)
         return {"error": f"Connection Error: {str(e)}"}
 
-"""def load_knowledge_base():
+def load_knowledge_base():
     kb_content = ""
     kb_folder = "knowledge"
     if os.path.exists(kb_folder):
@@ -1519,7 +1457,7 @@ def get_sheet_data_for_audit(sheet_id, sm_client):
     return kb_content
 
 # Initialize the knowledge once when the server starts
-INTERNAL_KNOWLEDGE = load_knowledge_base()"""
+INTERNAL_KNOWLEDGE = load_knowledge_base()
 
 
 @app.route('/formula', methods=['POST'])
@@ -1564,29 +1502,6 @@ def log_feedback():
     gsheet_log_feedback(current_user.name, fb_type, response_id)
 
     return jsonify({"status": "logged"})
-
-
-@app.route('/admin/reindex', methods=['GET'])
-@login_required  # Highly recommended so strangers can't trigger it
-def reindex_knowledge():
-    try:
-        # If you have an admin flag on your User model, check it here:
-        # if not current_user.is_admin: return "Unauthorized", 403
-
-        # This clears the old memory and re-scans the /knowledge folder
-        rag.load_and_index()
-
-        return jsonify({
-            "status": "success",
-            "message": "Knowledge base re-indexed successfully!",
-            "total_chunks": len(rag.embeddings),
-            "files_processed": list(set(chunk['source'] for chunk in rag.chunks))
-        })
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": f"Failed to re-index: {str(e)}"
-        }), 500
 
 
 @app.route('/chat', methods=['POST'])
@@ -1841,20 +1756,18 @@ def chat():
             """
 
     # 5. PREPEND SYSTEM PROMPT (Only for the very first message)
-    relevant_context = rag.retrieve(user_message, top_k=3)
     if not clean_history:
         final_prompt = f"""
-                    {SYSTEM_PROMPT}
+                {SYSTEM_PROMPT}
 
-                    <RELEVANT_KNOWLEDGE_CONTEXT>
-                    {relevant_context}
-                    </RELEVANT_KNOWLEDGE_CONTEXT>
+                <INTERNAL_CORPORATE_KNOWLEDGE>
+                {INTERNAL_KNOWLEDGE}
+                </INTERNAL_CORPORATE_KNOWLEDGE>
 
-                    USER REQUEST: {prompt_to_send}
-                    """
+                USER REQUEST: {prompt_to_send}
+                """
     else:
-        # For follow-up questions, we can also retrieve context or just send the message
-        final_prompt = f"Context for this question: {relevant_context}\n\nUser: {prompt_to_send}"
+        final_prompt = prompt_to_send
 
     try:
         # 6. GEMINI API CALL
