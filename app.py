@@ -36,7 +36,6 @@ from crawlers.best_practices_crawler import get_best_practices
 from crawlers.b2b_crawler import get_b2b_trends
 from crawlers.ai_crawler import get_ai_trends
 from crawlers.unanswered import get_unanswered_questions
-from rag_manager import rag
 
 load_dotenv()
 
