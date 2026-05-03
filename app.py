@@ -35,6 +35,7 @@ from crawlers.best_practices_crawler import get_best_practices
 from crawlers.b2b_crawler import get_b2b_trends
 from crawlers.ai_crawler import get_ai_trends
 from crawlers.unanswered import get_unanswered_questions
+from rag_manager import rag
 
 load_dotenv()
 
@@ -1443,7 +1444,7 @@ def get_sheet_data_for_audit(sheet_id, sm_client):
         # Catching all errors (404, 403, or invalid token)
         return {"error": f"Connection Error: {str(e)}"}
 
-def load_knowledge_base():
+"""def load_knowledge_base():
     kb_content = ""
     kb_folder = "knowledge"
     if os.path.exists(kb_folder):
@@ -1457,7 +1458,7 @@ def load_knowledge_base():
     return kb_content
 
 # Initialize the knowledge once when the server starts
-INTERNAL_KNOWLEDGE = load_knowledge_base()
+INTERNAL_KNOWLEDGE = load_knowledge_base()"""
 
 
 @app.route('/formula', methods=['POST'])
@@ -1502,6 +1503,29 @@ def log_feedback():
     gsheet_log_feedback(current_user.name, fb_type, response_id)
 
     return jsonify({"status": "logged"})
+
+
+@app.route('/admin/reindex', methods=['GET'])
+@login_required  # Highly recommended so strangers can't trigger it
+def reindex_knowledge():
+    try:
+        # If you have an admin flag on your User model, check it here:
+        # if not current_user.is_admin: return "Unauthorized", 403
+
+        # This clears the old memory and re-scans the /knowledge folder
+        rag.load_and_index()
+
+        return jsonify({
+            "status": "success",
+            "message": "Knowledge base re-indexed successfully!",
+            "total_chunks": len(rag.embeddings),
+            "files_processed": list(set(chunk['source'] for chunk in rag.chunks))
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to re-index: {str(e)}"
+        }), 500
 
 
 @app.route('/chat', methods=['POST'])
@@ -1756,18 +1780,20 @@ def chat():
             """
 
     # 5. PREPEND SYSTEM PROMPT (Only for the very first message)
+    relevant_context = rag.retrieve(user_message, top_k=3)
     if not clean_history:
         final_prompt = f"""
-                {SYSTEM_PROMPT}
+                    {SYSTEM_PROMPT}
 
-                <INTERNAL_CORPORATE_KNOWLEDGE>
-                {INTERNAL_KNOWLEDGE}
-                </INTERNAL_CORPORATE_KNOWLEDGE>
+                    <RELEVANT_KNOWLEDGE_CONTEXT>
+                    {relevant_context}
+                    </RELEVANT_KNOWLEDGE_CONTEXT>
 
-                USER REQUEST: {prompt_to_send}
-                """
+                    USER REQUEST: {prompt_to_send}
+                    """
     else:
-        final_prompt = prompt_to_send
+        # For follow-up questions, we can also retrieve context or just send the message
+        final_prompt = f"Context for this question: {relevant_context}\n\nUser: {prompt_to_send}"
 
     try:
         # 6. GEMINI API CALL
