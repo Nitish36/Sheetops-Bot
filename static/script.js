@@ -1062,45 +1062,59 @@ async function sendMessage() {
             }
 
             // --- STEP 6.7: PARSE CSV DOWNLOAD DATA ---
-            const csvMatch = responseText.match(/\[CSV_DATA:\s*({[\s\S]*?})\s*\]/);
+            let csvData = null;
 
-            if (csvMatch) {
-                console.log("CSV Data Detected:", csvMatch[1]); // DEBUG LOG
+            // Fallback 1: Look for our custom [CSV_DATA] tag
+            const csvTagMatch = responseText.match(/\[CSV_DATA:\s*({[\s\S]*?})\s*\]/);
+
+            if (csvTagMatch) {
                 try {
-                    const csvData = JSON.parse(csvMatch[1]);
+                    csvData = JSON.parse(csvTagMatch[1]);
+                    responseText = responseText.replace(csvTagMatch[0], "").trim();
+                } catch (e) { console.error("Tag Parse Error", e); }
+            }
 
-                    // Remove the raw JSON tag from the bot's spoken text
-                    responseText = responseText.replace(csvMatch[0], "").trim();
+            // Fallback 2: If no tag, but there is a ```csv code block, auto-generate the button!
+            else if (responseText.includes("```csv")) {
+                const codeBlockMatch = responseText.match(/```csv\s*([\s\S]*?)\s*```/);
+                if (codeBlockMatch) {
+                    const rawRows = codeBlockMatch[1].trim().split('\n');
+                    const headers = rawRows[0].split(',').map(h => h.trim());
+                    const rows = rawRows.slice(1).map(r => r.split(',').map(c => c.trim().replace(/"/g, '')));
 
-                    const btnId = "csv-" + Date.now();
-                    // Store the data in a way the download function can find it
-                    window[btnId] = csvData;
-
-                    // Ensure the button has a height and visible background
-                    const downloadHTML = `
-                        <div class="mt-4 p-4 bg-teal-500/10 border border-teal-500/20 rounded-2xl flex items-center justify-between border-dashed">
-                            <div class="flex items-center gap-3">
-                                <div class="p-2 bg-teal-500/20 rounded-lg">
-                                    <i data-lucide="file-spreadsheet" class="w-5 h-5 text-teal-400"></i>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] font-black text-teal-500 uppercase tracking-[0.2em]">Ready for Import</p>
-                                    <p class="text-xs text-slate-300 font-medium">${csvData.filename}</p>
-                                </div>
-                            </div>
-                            <button onclick="window.downloadCSV('${btnId}')"
-                                    class="flex items-center gap-2 px-4 py-2 bg-teal-500 text-[#0f172a] rounded-xl hover:bg-teal-400 transition-all font-bold text-xs shadow-lg shadow-teal-500/20 active:scale-95">
-                                <i data-lucide="download" class="w-4 h-4"></i>
-                                DOWNLOAD
-                            </button>
-                        </div>
-                    `;
-
-                    // Add this to our final output
-                    chartHTML += downloadHTML; // Appending to chartHTML ensures it shows up above the feedback buttons
-                } catch (e) {
-                    console.error("CSV JSON Parse Error. Check AI output format:", e);
+                    csvData = {
+                        filename: "Sheetops_Extracted_Tasks.csv",
+                        headers: headers,
+                        rows: rows
+                    };
+                    // We keep the code block visible but add the button below it
                 }
+            }
+
+            if (csvData) {
+                const btnId = "csv-" + Date.now();
+                window[btnId] = csvData;
+
+                const downloadHTML = `
+                    <div class="mt-4 p-4 bg-teal-500/10 border border-teal-500/20 rounded-2xl flex items-center justify-between border-dashed animate-pulse">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-teal-500/20 rounded-lg">
+                                <i data-lucide="file-spreadsheet" class="w-5 h-5 text-teal-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black text-teal-400 uppercase tracking-[0.2em]">Import Ready File</p>
+                                <p class="text-xs text-slate-300 font-medium">${csvData.filename}</p>
+                            </div>
+                        </div>
+                        <button onclick="window.downloadCSV('${btnId}')"
+                                class="flex items-center gap-2 px-4 py-2 bg-teal-500 text-[#0f172a] rounded-xl hover:bg-teal-400 transition-all font-bold text-xs shadow-lg shadow-teal-500/20">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            DOWNLOAD
+                        </button>
+                    </div>
+                `;
+                // Append to output
+                chartHTML += downloadHTML;
             }
 
 

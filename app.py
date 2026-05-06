@@ -168,10 +168,11 @@ Mention that you can pull live event schedules (Webinars, ENGAGE tours, and Trai
 4. When identifying tasks from messy notes, say: "I've analyzed your notes and extracted [X] specific action items..."
 
 [ENTITY EXTRACTION & CSV GENERATION]:
-1. If [ENTITY EXTRACTION DATA] is present, acknowledge the specific number of tasks and owners identified.
-2. Offer the user a 'Project CSV Download'.
-3. If the user agrees, you MUST output a JSON block in this EXACT format at the very end:
-[CSV_DATA: {"filename": "smartsheet_import.csv", "headers": ["Task Name", "Assigned To", "Due Date"], "rows": [["Task 1", "Name", "Date"], ["Task 2", "Name", "Date"]]}]
+1. If the user agrees to a CSV/Download, you MUST provide the JSON block below.
+2. CRITICAL: DO NOT use markdown code blocks (```csv). DO NOT use plain text.
+3. OUTPUT FORMAT: You must strictly end your response with this tag:
+   [CSV_DATA: {"filename": "Sheetops_Action_Items.csv", "headers": ["Task", "Owner", "Due Date"], "rows": [["Task 1", "Name", "Date"]]}]
+4. Any text inside [CSV_DATA] must be valid JSON.
 
 [ERROR RESOLUTION & HEALTH CHECKS]:
 When a user describes a failure (e.g., "The sync stopped"), consult 'troubleshooting.md'. 
@@ -1725,6 +1726,8 @@ def chat():
             "session_id": str(session_id)
         })
 
+
+
     # 2. STRICT HISTORY CLEANER (Ensures Gemini 3 never gets malformed data)
     clean_history = []
     for msg in raw_history:
@@ -1740,6 +1743,8 @@ def chat():
             if txt:
                 clean_history.append({"role": role, "parts": [{"text": txt}]})
 
+        """if any(word in user_message.lower() for word in ["yes", "generate", "download"]) and "ENTITY EXTRACTION DATA" in str(clean_history):
+            prompt_to_send = f"{user_message} (REMINDER: You MUST use the [CSV_DATA: {{...}}] JSON format for the download button. Do NOT use markdown code blocks.)"""
 
     # 3. DATABASE: Create Session & Sync User if this is a new chat
     try:
