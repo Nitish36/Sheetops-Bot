@@ -1,5 +1,14 @@
 from textblob import TextBlob
+import spacy
+import re
 
+try:
+    nlp = spacy.load("en_core_web_sm")
+except:
+    # Fallback for deployment environments
+    import os
+    os.system("python -m spacy download en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 
 class UserBehaviorAnalyzer:
     def __init__(self):
@@ -72,4 +81,57 @@ class UserBehaviorAnalyzer:
         elif analysis['user_state'] == "Satisfied/Polite":
             context += "- Directive: User is friendly. You may maintain a more helpful, mentoring Lead Architect tone.\n"
 
+        return context
+
+
+class ActionItemExtractor:
+    def __init__(self):
+        # Action verbs that often start a task
+        self.action_verbs = ["create", "update", "send", "email", "call", "finish", "complete", "draft", "fix", "setup",
+                             "prepare"]
+
+    def extract_entities(self, text):
+        doc = nlp(text)
+
+        extracted_data = {
+            "tasks": [],
+            "assignees": [],
+            "deadlines": []
+        }
+
+        # 1. Extract PERSON (Assignees) and DATE (Deadlines)
+        for ent in doc.ents:
+            if ent.label_ == "PERSON":
+                extracted_data["assignees"].append(ent.text)
+            elif ent.label_ == "DATE":
+                extracted_data["deadlines"].append(ent.text)
+
+        # 2. Extract Tasks (Action Phrases)
+        # We look for chunks that start with an action verb or follow a bullet point
+        lines = text.split('\n')
+        for line in lines:
+            line = line.strip()
+            # Check if line starts with a verb or common task markers
+            is_task = any(line.lower().startswith(v) for v in self.action_verbs) or line.startswith(('-', '*', '•'))
+            if is_task and len(line) > 5:
+                # Clean up bullet points
+                clean_task = re.sub(r'^[-*•]\s*', '', line)
+                extracted_data["tasks"].append(clean_task)
+
+        # De-duplicate
+        extracted_data["assignees"] = list(set(extracted_data["assignees"]))
+        extracted_data["deadlines"] = list(set(extracted_data["deadlines"]))
+
+        return extracted_data
+
+    def get_extraction_context(self, text):
+        data = self.extract_entities(text)
+        if not data["tasks"]:
+            return ""
+
+        context = f"\n[ENTITY EXTRACTION DATA]\n"
+        context += f"- Tasks Found: {len(data['tasks'])}\n"
+        context += f"- Potential Owners: {', '.join(data['assignees']) if data['assignees'] else 'None identified'}\n"
+        context += f"- Potential Dates: {', '.join(data['deadlines']) if data['deadlines'] else 'None identified'}\n"
+        context += "- Action: Offer to generate an 'Import Ready CSV'.\n"
         return context

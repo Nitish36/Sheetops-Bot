@@ -1061,6 +1061,34 @@ async function sendMessage() {
                 }
             }
 
+            // --- STEP 6.7: PARSE CSV DOWNLOAD DATA ---
+            const csvMatch = responseText.match(/\[CSV_DATA:\s*({[\s\S]*?})\s*\]/);
+            if (csvMatch) {
+                try {
+                    const csvData = JSON.parse(csvMatch[1]);
+                    responseText = responseText.replace(csvMatch[0], "").trim();
+
+                    const btnId = "csv-" + Date.now();
+                    const downloadHTML = `
+                        <div class="mt-4 p-4 bg-teal-500/10 border border-teal-500/30 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-teal-400 uppercase tracking-widest">Import Ready File</p>
+                                <p class="text-[10px] text-slate-400">${csvData.filename} (${csvData.rows.length} rows)</p>
+                            </div>
+                            <button onclick="downloadCSV('${btnId}')" id="${btnId}" class="p-2 bg-teal-500 text-[#0f172a] rounded-xl hover:bg-teal-400 transition shadow-lg shadow-teal-500/20">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+
+                    // Store the data globally for the download function
+                    window[btnId] = csvData;
+                    responseText += downloadHTML;
+                } catch (e) {
+                    console.error("CSV Parse Error:", e);
+                }
+            }
+
 
             // --- STEP 7: PARSE OPTIONS ---
             if (data.options && data.options.length > 0) {
@@ -2065,6 +2093,21 @@ document.getElementById("user-input").addEventListener("keypress", (e) => {
 function setPrompt(text) {
     document.getElementById('user-input').value = text;
 }
+
+window.downloadCSV = function(dataId) {
+    const data = window[dataId];
+    let csvContent = "data:text/csv;charset=utf-8,"
+        + data.headers.join(",") + "\n"
+        + data.rows.map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", data.filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
 window.startNewSession = function() {
     currentSessionId = null;

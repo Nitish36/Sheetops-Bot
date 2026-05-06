@@ -35,18 +35,20 @@ from crawlers.best_practices_crawler import get_best_practices
 from crawlers.b2b_crawler import get_b2b_trends
 from crawlers.ai_crawler import get_ai_trends
 from crawlers.unanswered import get_unanswered_questions
-from nlp_manager import UserBehaviorAnalyzer
+from nlp_manager import UserBehaviorAnalyzer, ActionItemExtractor
 import textblob
 try:
     textblob.TextBlob("test").sentiment
 except:
     import nltk
+    os.system("python -m textblob.download_corpora")
     nltk.download('punkt')
     nltk.download('brown')
     nltk.download('punkt_tab')
 
 load_dotenv()
 nlp_analyzer  = UserBehaviorAnalyzer()
+extractor = ActionItemExtractor()
 
 app = Flask(__name__,template_folder='template')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -163,6 +165,13 @@ Mention that you can pull live event schedules (Webinars, ENGAGE tours, and Trai
 2. Always cite the specific internal document you are referencing (e.g., 'According to our Onboarding Guide...').
 3. If a user asks a general question, always try to link it back to a specific tool in our Admin Toolkit (e.g., 
    'To solve this, I recommend using the Webhook Audit module in your Toolkit').
+4. When identifying tasks from messy notes, say: "I've analyzed your notes and extracted [X] specific action items..."
+
+[ENTITY EXTRACTION & CSV GENERATION]:
+1. If [ENTITY EXTRACTION DATA] is present, acknowledge the specific number of tasks and owners identified.
+2. Offer the user a 'Project CSV Download'.
+3. If the user agrees, you MUST output a JSON block in this EXACT format at the very end:
+[CSV_DATA: {"filename": "smartsheet_import.csv", "headers": ["Task Name", "Assigned To", "Due Date"], "rows": [["Task 1", "Name", "Date"], ["Task 2", "Name", "Date"]]}]
 
 [ERROR RESOLUTION & HEALTH CHECKS]:
 When a user describes a failure (e.g., "The sync stopped"), consult 'troubleshooting.md'. 
@@ -1536,6 +1545,7 @@ def chat():
     user_message = data.get("message")
     raw_history = data.get("history", [])
     behavior_context = nlp_analyzer.get_behavioral_context(user_message)
+    extraction_context = extractor.get_extraction_context(user_message)
 
     # 1. SANITIZE SESSION ID (Prevents "null" string errors)
     session_id = data.get("session_id")
@@ -1786,6 +1796,7 @@ def chat():
         final_prompt = f"""
                 {SYSTEM_PROMPT}
                 {behavior_context}
+                {extraction_context}
                 <INTERNAL_CORPORATE_KNOWLEDGE>
                 {INTERNAL_KNOWLEDGE}
                 </INTERNAL_CORPORATE_KNOWLEDGE>
