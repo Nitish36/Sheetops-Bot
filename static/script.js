@@ -1063,29 +1063,43 @@ async function sendMessage() {
 
             // --- STEP 6.7: PARSE CSV DOWNLOAD DATA ---
             const csvMatch = responseText.match(/\[CSV_DATA:\s*({[\s\S]*?})\s*\]/);
+
             if (csvMatch) {
+                console.log("CSV Data Detected:", csvMatch[1]); // DEBUG LOG
                 try {
                     const csvData = JSON.parse(csvMatch[1]);
+
+                    // Remove the raw JSON tag from the bot's spoken text
                     responseText = responseText.replace(csvMatch[0], "").trim();
 
                     const btnId = "csv-" + Date.now();
+                    // Store the data in a way the download function can find it
+                    window[btnId] = csvData;
+
+                    // Ensure the button has a height and visible background
                     const downloadHTML = `
-                        <div class="mt-4 p-4 bg-teal-500/10 border border-teal-500/30 rounded-2xl flex items-center justify-between">
-                            <div>
-                                <p class="text-xs font-bold text-teal-400 uppercase tracking-widest">Import Ready File</p>
-                                <p class="text-[10px] text-slate-400">${csvData.filename} (${csvData.rows.length} rows)</p>
+                        <div class="mt-4 p-4 bg-teal-500/10 border border-teal-500/20 rounded-2xl flex items-center justify-between border-dashed">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-teal-500/20 rounded-lg">
+                                    <i data-lucide="file-spreadsheet" class="w-5 h-5 text-teal-400"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-black text-teal-500 uppercase tracking-[0.2em]">Ready for Import</p>
+                                    <p class="text-xs text-slate-300 font-medium">${csvData.filename}</p>
+                                </div>
                             </div>
-                            <button onclick="downloadCSV('${btnId}')" id="${btnId}" class="p-2 bg-teal-500 text-[#0f172a] rounded-xl hover:bg-teal-400 transition shadow-lg shadow-teal-500/20">
+                            <button onclick="window.downloadCSV('${btnId}')"
+                                    class="flex items-center gap-2 px-4 py-2 bg-teal-500 text-[#0f172a] rounded-xl hover:bg-teal-400 transition-all font-bold text-xs shadow-lg shadow-teal-500/20 active:scale-95">
                                 <i data-lucide="download" class="w-4 h-4"></i>
+                                DOWNLOAD
                             </button>
                         </div>
                     `;
 
-                    // Store the data globally for the download function
-                    window[btnId] = csvData;
-                    responseText += downloadHTML;
+                    // Add this to our final output
+                    chartHTML += downloadHTML; // Appending to chartHTML ensures it shows up above the feedback buttons
                 } catch (e) {
-                    console.error("CSV Parse Error:", e);
+                    console.error("CSV JSON Parse Error. Check AI output format:", e);
                 }
             }
 
@@ -2096,26 +2110,24 @@ function setPrompt(text) {
 
 window.downloadCSV = function(dataId) {
     const data = window[dataId];
-    if (!data) return;
+    if (!data) {
+        alert("Download data expired. Please try generating again.");
+        return;
+    }
 
-    // Build CSV string
-    const csvRows = [];
-    csvRows.push(data.headers.join(',')); // Add Header
-
+    // Build CSV Content
+    let csvContent = data.headers.join(",") + "\n";
     data.rows.forEach(row => {
-        // Wrap in quotes to handle commas within task names
-        const formattedRow = row.map(field => `"${field}"`);
-        csvRows.push(formattedRow.join(','));
+        // Handle commas/quotes in data
+        const safeRow = row.map(val => `"${String(val).replace(/"/g, '""')}"`);
+        csvContent += safeRow.join(",") + "\n";
     });
 
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
     link.setAttribute("download", data.filename || "smartsheet_import.csv");
-    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
