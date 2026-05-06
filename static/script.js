@@ -2096,14 +2096,26 @@ function setPrompt(text) {
 
 window.downloadCSV = function(dataId) {
     const data = window[dataId];
-    let csvContent = "data:text/csv;charset=utf-8,"
-        + data.headers.join(",") + "\n"
-        + data.rows.map(e => e.join(",")).join("\n");
+    if (!data) return;
 
-    const encodedUri = encodeURI(csvContent);
+    // Build CSV string
+    const csvRows = [];
+    csvRows.push(data.headers.join(',')); // Add Header
+
+    data.rows.forEach(row => {
+        // Wrap in quotes to handle commas within task names
+        const formattedRow = row.map(field => `"${field}"`);
+        csvRows.push(formattedRow.join(','));
+    });
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", data.filename);
+    link.setAttribute("href", url);
+    link.setAttribute("download", data.filename || "smartsheet_import.csv");
+    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

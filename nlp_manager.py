@@ -85,53 +85,45 @@ class UserBehaviorAnalyzer:
 
 
 class ActionItemExtractor:
-    def __init__(self):
-        # Action verbs that often start a task
-        self.action_verbs = ["create", "update", "send", "email", "call", "finish", "complete", "draft", "fix", "setup",
-                             "prepare"]
-
     def extract_entities(self, text):
         doc = nlp(text)
 
-        extracted_data = {
-            "tasks": [],
-            "assignees": [],
-            "deadlines": []
-        }
+        # Lists to store found items
+        tasks = []
+        assignees = []
+        deadlines = []
 
-        # 1. Extract PERSON (Assignees) and DATE (Deadlines)
+        # 1. PERSON and DATE extraction
         for ent in doc.ents:
             if ent.label_ == "PERSON":
-                extracted_data["assignees"].append(ent.text)
+                assignees.append(ent.text)
             elif ent.label_ == "DATE":
-                extracted_data["deadlines"].append(ent.text)
+                deadlines.append(ent.text)
 
-        # 2. Extract Tasks (Action Phrases)
-        # We look for chunks that start with an action verb or follow a bullet point
-        lines = text.split('\n')
-        for line in lines:
-            line = line.strip()
-            # Check if line starts with a verb or common task markers
-            is_task = any(line.lower().startswith(v) for v in self.action_verbs) or line.startswith(('-', '*', '•'))
-            if is_task and len(line) > 5:
-                # Clean up bullet points
-                clean_task = re.sub(r'^[-*•]\s*', '', line)
-                extracted_data["tasks"].append(clean_task)
+        # 2. TASK extraction (Using Dependency Parsing)
+        # We look for "ROOT" verbs or "XCOMP" (dependent verbs)
+        for sent in doc.sents:
+            for token in sent:
+                if token.pos_ == "VERB" and token.dep_ in ["ROOT", "xcomp"]:
+                    # Capture the verb and its associated objects
+                    task_phrase = "".join([w.text_with_ws for w in token.subtree]).strip()
+                    if len(task_phrase.split()) > 2:  # Ignore single words like "Regroup"
+                        tasks.append(task_phrase.capitalize())
 
-        # De-duplicate
-        extracted_data["assignees"] = list(set(extracted_data["assignees"]))
-        extracted_data["deadlines"] = list(set(extracted_data["deadlines"]))
-
-        return extracted_data
+        return {
+            "tasks": list(set(tasks))[:10],  # Limit to top 10
+            "assignees": list(set(assignees)),
+            "deadlines": list(set(deadlines))
+        }
 
     def get_extraction_context(self, text):
         data = self.extract_entities(text)
-        if not data["tasks"]:
-            return ""
+        if not data["tasks"]: return ""
 
-        context = f"\n[ENTITY EXTRACTION DATA]\n"
-        context += f"- Tasks Found: {len(data['tasks'])}\n"
-        context += f"- Potential Owners: {', '.join(data['assignees']) if data['assignees'] else 'None identified'}\n"
-        context += f"- Potential Dates: {', '.join(data['deadlines']) if data['deadlines'] else 'None identified'}\n"
-        context += "- Action: Offer to generate an 'Import Ready CSV'.\n"
-        return context
+        return f"""
+        [ENTITY EXTRACTION DATA]
+        - Tasks: {len(data['tasks'])} items found.
+        - People: {', '.join(data['assignees'])}
+        - Dates: {', '.join(data['deadlines'])}
+        - Directive: Acknowledge these and offer a [CSV_DATA] download.
+        """
