@@ -36,6 +36,14 @@ from crawlers.b2b_crawler import get_b2b_trends
 from crawlers.ai_crawler import get_ai_trends
 from crawlers.unanswered import get_unanswered_questions
 from nlp_manager import UserBehaviorAnalyzer
+import textblob
+try:
+    textblob.TextBlob("test").sentiment
+except:
+    import nltk
+    nltk.download('punkt')
+    nltk.download('brown')
+    nltk.download('punkt_tab')
 
 load_dotenv()
 nlp_analyzer  = UserBehaviorAnalyzer()
