@@ -1624,7 +1624,7 @@ def chat():
         })
 
     # Check for Financial Services / Banking topics
-    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting", "audit"]
+    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting"]
     if any(word in user_message.lower() for word in finance_keywords):
         num_match = re.search(r'\d+', user_message)
         limit = int(num_match.group()) if num_match else 10
