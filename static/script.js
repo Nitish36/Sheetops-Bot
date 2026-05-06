@@ -1001,6 +1001,7 @@ async function sendMessage() {
             let chartHTML = "";
             let optionsHTML = "";
 
+
             // --- STEP 6: PARSE CHART DATA ---
             const chartMatch = responseText.match(/\[CHART_DATA:\s*({[\s\S]*?})\s*\]/);
             if (chartMatch) {
@@ -1031,6 +1032,36 @@ async function sendMessage() {
                 } catch (e) { console.error("Chart Error:", e); }
             }
 
+            // --- STEP 6.5: PARSE SENTIMENT VIBE METER ---
+            const sentimentMatch = responseText.match(/\[SENTIMENT_CHART:\s*({[\s\S]*?})\s*\]/);
+            let sentimentHTML = "";
+
+            if (sentimentMatch) {
+                try {
+                    const sData = JSON.parse(sentimentMatch[1]);
+                    // Clean text from tag
+                    responseText = responseText.replace(sentimentMatch[0], "").trim();
+
+                    // Map score -1 to 1 into a percentage 0% to 100%
+                    const percentage = ((sData.score + 1) / 2) * 100;
+
+                    sentimentHTML = `
+                        <div class="mt-2 p-3 bg-slate-900/40 rounded-xl border border-slate-700/50">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-widest">Interaction Vibe: ${sData.label}</span>
+                                <span class="text-[9px] font-bold" style="color: ${sData.color}">${Math.round(percentage)}%</span>
+                            </div>
+                            <div class="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="h-full transition-all duration-1000" style="width: ${percentage}%; background-color: ${sData.color}"></div>
+                            </div>
+                        </div>
+                    `;
+                } catch (e) {
+                    console.error("Sentiment Parsing Error:", e);
+                }
+            }
+
+
             // --- STEP 7: PARSE OPTIONS ---
             if (data.options && data.options.length > 0) {
                 optionsHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">`;
@@ -1047,6 +1078,7 @@ async function sendMessage() {
             finalBotHTML = `
                 <div class="space-y-4">
                     <div class="bot-text-content leading-relaxed">${formattedText}</div>
+                    ${sentimentHTML}
                     ${chartHTML}
                     ${optionsHTML}
                 </div>`;

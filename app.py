@@ -35,8 +35,10 @@ from crawlers.best_practices_crawler import get_best_practices
 from crawlers.b2b_crawler import get_b2b_trends
 from crawlers.ai_crawler import get_ai_trends
 from crawlers.unanswered import get_unanswered_questions
+from nlp_manager import UserBehaviorAnalyzer
 
 load_dotenv()
+nlp_analyzer  = UserBehaviorAnalyzer()
 
 app = Flask(__name__,template_folder='template')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -95,6 +97,18 @@ TRIGGER_TICKET] in your response.]
 provide a 'Manual Remediation Plan' with specific steps the Admin should take in the Smartsheet UI.
 6. COMPLIANCE: Remind the user of standard Smartsheet best practices (e.g., using 'Contact List' columns
 for owners instead of text strings).]\n\n
+
+[BEHAVIORAL ADAPTATION]:
+You are equipped with a 'Psychological Layer' that analyzes the user's prompt (NOT sheet data). 
+1. If [USER BEHAVIOR CONTEXT] indicates 'Frustrated' or 'High Urgency', be brief, highly professional, and skip all greetings. Focus ONLY on the solution.
+2. If the context indicates 'Satisfied' or 'Neutral', you may use your standard 'Lead Architect' mentoring tone.
+3. If the user's sentiment is notably positive or negative, you MUST append a Sentiment Chart tag at the end of your response to visualize the interaction vibe.\n\n
+
+[SENTIMENT CHART INSTRUCTION]:
+To visualize the user's interaction mood, append this JSON block at the very end (ONLY based on the user's prompt sentiment):
+[SENTIMENT_CHART: {"score": 0.8, "label": "Positive", "color": "#14b8a6"}]
+- Score range: -1.0 (Very Frustrated) to 1.0 (Very Happy).
+- Colors: #ef4444 (Negative), #f59e0b (Neutral/Anxious), #14b8a6 (Positive).\n\n
 
 [KNOWLEDGE MANAGEMENT RULES]:
 1. You have access to multiple internal documents labeled with <DOCUMENT_START>.
@@ -1513,6 +1527,7 @@ def chat():
     data = request.json
     user_message = data.get("message")
     raw_history = data.get("history", [])
+    behavior_context = nlp_analyzer.get_behavioral_context(user_message)
 
     # 1. SANITIZE SESSION ID (Prevents "null" string errors)
     session_id = data.get("session_id")
@@ -1728,6 +1743,7 @@ def chat():
     sheet_id_match = re.search(r'\b\d{15,20}\b', user_message)
     prompt_to_send = user_message
 
+
     if sheet_id_match:
         sheet_id = sheet_id_match.group()
         sm_personal = get_sm_client()
@@ -1761,7 +1777,7 @@ def chat():
     if not clean_history:
         final_prompt = f"""
                 {SYSTEM_PROMPT}
-
+                {behavior_context}
                 <INTERNAL_CORPORATE_KNOWLEDGE>
                 {INTERNAL_KNOWLEDGE}
                 </INTERNAL_CORPORATE_KNOWLEDGE>
@@ -1769,7 +1785,7 @@ def chat():
                 USER REQUEST: {prompt_to_send}
                 """
     else:
-        final_prompt = prompt_to_send
+        final_prompt = f"{behavior_context}\n\nUSER REQUEST: {prompt_to_send}"
 
     try:
         # 6. GEMINI API CALL
