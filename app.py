@@ -24,17 +24,7 @@ from cryptography.fernet import Fernet
 from db_manager import log_activity, create_session, save_message, get_user_sessions, get_session_messages, create_user, verify_user_login, get_user_by_id, get_db_connection, get_executive_stats
 from gsheet_manager import gsheet_sync_user, gsheet_log_session, gsheet_log_activity, gsheet_log_feedback
 from werkzeug.middleware.proxy_fix import ProxyFix
-from crawlers.general_announcement_crawler import get_community_announcements
-from crawlers.events_crawler import get_smartsheet_events
-from crawlers.product_announcement_crawler import get_product_updates
-from crawlers.pmo_crawler import get_pmo_trends
-from crawlers.healthcare_ls_crawler import get_healthcare_trends
-from crawlers.financial_services_crawler import get_finance_trends
-from crawlers.digital_it import get_it_trends
-from crawlers.best_practices_crawler import get_best_practices
-from crawlers.b2b_crawler import get_b2b_trends
-from crawlers.ai_crawler import get_ai_trends
-from crawlers.unanswered import get_unanswered_questions
+
 
 load_dotenv()
 
@@ -105,19 +95,7 @@ for owners instead of text strings).]\n\n
 6. If the user asks about Premium Apps (Dynamic View, Data Shuttle, DataMesh, Bridge, Pivot App, WorkApps), prioritize 'asl.md'.
 7. If the user asks about external integrations (Jira, Salesforce, ServiceNow, Teams, Slack), prioritize 'connectors.md'.
 8. If the user reports an ERROR, a BROKEN SYNC, or asks for a HEALTH CHECK, you MUST prioritize 'troubleshooting.md'.
-9. LIVE DATA: You have a "Live Crawler" tool.
-    For general updates, use 'announcements'.
-    For feature/software updates, use 'product releases'.
-    For training, use 'events'.
-    For PMO governance, use 'PMO trends'.
-    For Healthcare, use 'Healthcare trends'.
-    For Finance, use 'Financial trends'.
-    For IT, Software Development, or Digital Transformation, use 'IT trends'.
-    For optimization and standards, use 'best practices'.
-    For vendor management or client-facing operations, use 'B2B trends'.
-    Future Tech: For Smartsheet AI, Gemini, or Automation features, use 'AI trends'.
-    Community Contribution: For unanswered questions or users wanting to help others, use 'unanswered questions'.
-    
+
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
 Act as a mentor to help them navigate the 16 modules.
@@ -126,13 +104,6 @@ Act as a mentor to help them navigate the 16 modules.
 When a user asks about scaling their solution or handling large datasets, reference 'asl.md' (Advanced Smartsheet Learning). 
 Explain how tools like Data Shuttle or DataTable solve limitations like row counts or manual data entry. 
 Maintain a strategic consultant tone for these topics.
-
-[LIVE COMMUNITY ACCESS & UPDATES]:
-When users ask about the latest Smartsheet changes or product releases, acknowledge that you can perform live crawls of the Smartsheet Community. 
-If the user asks a vague question about news, guide them: "I can scrape the latest announcements for you—just ask for 'top 10 community updates'."
-
-[LIVE DATA CAPABILITIES]:
-Mention that you can pull live event schedules (Webinars, ENGAGE tours, and Training) directly from the official Smartsheet events portal.
 
 [COMMUNICATION STYLE]:
 1. Maintain your authoritative 'Lead Architect' tone. 
@@ -1524,171 +1495,6 @@ def chat():
     # If the user wants to start a ticket OR is already in the middle of one
     if user_message == "INITIATE_HC_TICKET_FLOW" or t_state is not None:
         return handle_ticketing_flow(user_message, session_id)
-
-    # --- NEW: COMMUNITY ANNOUNCEMENT INTERCEPTION ---
-    # Detects keywords like 'announcement', 'community news', 'whats new'
-    if any(word in user_message.lower() for word in ["announcement", "community news", "what's new"]):
-        # Extract number if user specified (e.g., "Give me 5 announcements")
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-
-        # This triggers the "Progress Bar" state on the frontend
-        announcements = get_community_announcements(limit)
-
-        # Save this interaction to DB before returning
-        if not session_id:
-            session_id = create_session(current_user.id, "Community Scrape", "chats")
-        save_message(session_id, "user", user_message)
-        save_message(session_id, "model", f"Scraped {len(announcements)} announcements.")
-
-        return jsonify({
-            "type": "announcements",
-            "data": announcements,
-            "response": f"I've crawled the Smartsheet Community for the latest updates. Here are the top {len(announcements)} announcements:",
-            "session_id": str(session_id)
-        })
-
-    # --- EVENT INTERCEPTION ---
-    if any(word in user_message.lower() for word in ["event", "webinar", "training", "conference"]):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 5  # Events are long, default to 5
-
-        events = get_smartsheet_events(limit)
-
-        # Save to DB logic (Reuse your existing save_message logic)
-        return jsonify({
-            "type": "events",
-            "data": events,
-            "response": f"I've found {len(events)} upcoming Smartsheet events and webinars for you:",
-            "session_id": str(session_id)
-        })
-
-    # 1. Check for Product Specific News first
-    product_keywords = ["product release", "new feature", "product announcement", "updates"]
-    if any(word in user_message.lower() for word in product_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        updates = get_product_updates(limit)
-
-        return jsonify({
-            "type": "product_news",
-            "data": updates,
-            "response": f"I've pulled the latest {len(updates)} Product Announcements and feature releases for you:",
-            "session_id": str(session_id)
-        })
-
-    # Check for PMO / Trending topics
-    pmo_keywords = ["pmo", "project management office", "pmo trends", "pmo advice", "pmo best practices"]
-    if any(word in user_message.lower() for word in pmo_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        trends = get_pmo_trends(limit)
-
-        return jsonify({
-            "type": "pmo_trends",
-            "data": trends,
-            "response": f"I've analyzed the latest trending PMO discussions for you. Here are the top {len(trends)} 'Hot' topics:",
-            "session_id": str(session_id)
-        })
-
-    # Check for Healthcare / Life Sciences topics
-    hc_keywords = ["healthcare", "life sciences", "medical", "hipaa", "clinical", "pharma", "patient"]
-
-    if any(word in user_message.lower() for word in hc_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        trends = get_healthcare_trends(limit)
-
-        return jsonify({
-            "type": "healthcare_trends",
-            "data": trends,
-            "response": f"I've pulled the latest trending Healthcare & Life Sciences discussions for you. Here are the top {len(trends)} topics:",
-            "session_id": str(session_id)
-        })
-
-    # Check for Financial Services / Banking topics
-    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting", "audit"]
-    if any(word in user_message.lower() for word in finance_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        trends = get_finance_trends(limit)
-
-        return jsonify({
-            "type": "finance_trends",
-            "data": trends,
-            "response": f"I've retrieved the latest trending Financial Services discussions for you. Here are the top {len(trends)} topics:",
-            "session_id": str(session_id)
-        })
-
-    # Check for IT / Digital Transformation topics
-    it_keywords = ["digital", " it ", "tech", "software", "sdlc", "infrastructure", "digital transformation", "it pmo"]
-    if any(word in user_message.lower() for word in it_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        trends = get_it_trends(limit)
-
-        return jsonify({
-            "type": "it_trends",
-            "data": trends,
-            "response": f"I've analyzed the latest trending Digital IT & Portfolio discussions. Here are the top {len(trends)} topics:",
-            "session_id": str(session_id)
-        })
-
-    # Check for Best Practices / Optimization topics
-    bp_keywords = ["best practice", "optimization", "efficiency", "how to improve", "expert advice", "standards"]
-    if any(word in user_message.lower() for word in bp_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        practices = get_best_practices(limit)
-
-        return jsonify({
-            "type": "best_practices",
-            "data": practices,
-            "response": f"I've curated the latest expert Best Practices from the community. Here are the top {len(practices)} optimization topics:",
-            "session_id": str(session_id)
-        })
-
-    # Check for B2B / Enterprise Work Management topics
-    b2b_keywords = ["b2b", "vendor management", "client project", "external collaboration", "enterprise work"]
-    if any(word in user_message.lower() for word in b2b_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        trends = get_b2b_trends(limit)
-
-        return jsonify({
-            "type": "b2b_trends",
-            "data": trends,
-            "response": f"I've pulled the trending B2B Work Management discussions. Here are the top {len(trends)} topics for enterprise collaboration:",
-            "session_id": str(session_id)
-        })
-
-    # Check for AI / Artificial Intelligence / Gemini topics
-    ai_keywords = [" ai ", "artificial intelligence", "gemini", "generative ai", "ai features", "automation"]
-    if any(word in user_message.lower() for word in ai_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        trends = get_ai_trends(limit)
-
-        return jsonify({
-            "type": "ai_trends",
-            "data": trends,
-            "response": f"I've crawled the latest discussions on AI and Innovation. here are the top {len(trends)} trending topics:",
-            "session_id": str(session_id)
-        })
-
-    # Check for Unanswered / Help needed topics
-    help_keywords = ["unanswered", "no replies", "help others", "unresolved", "community help"]
-    if any(word in user_message.lower() for word in help_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        questions = get_unanswered_questions(limit)
-
-        return jsonify({
-            "type": "unanswered_questions",
-            "data": questions,
-            "response": f"I've found {len(questions)} recent discussions that haven't received an answer yet. Here's where the community needs your help:",
-            "session_id": str(session_id)
-        })
 
     # 2. STRICT HISTORY CLEANER (Ensures Gemini 3 never gets malformed data)
     clean_history = []
