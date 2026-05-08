@@ -1001,7 +1001,6 @@ async function sendMessage() {
             let chartHTML = "";
             let optionsHTML = "";
 
-
             // --- STEP 6: PARSE CHART DATA ---
             const chartMatch = responseText.match(/\[CHART_DATA:\s*({[\s\S]*?})\s*\]/);
             if (chartMatch) {
@@ -1032,92 +1031,6 @@ async function sendMessage() {
                 } catch (e) { console.error("Chart Error:", e); }
             }
 
-            // --- STEP 6.5: PARSE SENTIMENT VIBE METER ---
-            const sentimentMatch = responseText.match(/\[SENTIMENT_CHART:\s*({[\s\S]*?})\s*\]/);
-            let sentimentHTML = "";
-
-            if (sentimentMatch) {
-                try {
-                    const sData = JSON.parse(sentimentMatch[1]);
-                    // Clean text from tag
-                    responseText = responseText.replace(sentimentMatch[0], "").trim();
-
-                    // Map score -1 to 1 into a percentage 0% to 100%
-                    const percentage = ((sData.score + 1) / 2) * 100;
-
-                    sentimentHTML = `
-                        <div class="mt-2 p-3 bg-slate-900/40 rounded-xl border border-slate-700/50">
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-widest">Interaction Vibe: ${sData.label}</span>
-                                <span class="text-[9px] font-bold" style="color: ${sData.color}">${Math.round(percentage)}%</span>
-                            </div>
-                            <div class="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                                <div class="h-full transition-all duration-1000" style="width: ${percentage}%; background-color: ${sData.color}"></div>
-                            </div>
-                        </div>
-                    `;
-                } catch (e) {
-                    console.error("Sentiment Parsing Error:", e);
-                }
-            }
-
-            // --- STEP 6.7: PARSE CSV DOWNLOAD DATA ---
-            let csvData = null;
-
-            // Fallback 1: Look for our custom [CSV_DATA] tag
-            const csvTagMatch = responseText.match(/\[CSV_DATA:\s*({[\s\S]*?})\s*\]/);
-
-            if (csvTagMatch) {
-                try {
-                    csvData = JSON.parse(csvTagMatch[1]);
-                    responseText = responseText.replace(csvTagMatch[0], "").trim();
-                } catch (e) { console.error("Tag Parse Error", e); }
-            }
-
-            // Fallback 2: If no tag, but there is a ```csv code block, auto-generate the button!
-            else if (responseText.includes("```csv")) {
-                const codeBlockMatch = responseText.match(/```csv\s*([\s\S]*?)\s*```/);
-                if (codeBlockMatch) {
-                    const rawRows = codeBlockMatch[1].trim().split('\n');
-                    const headers = rawRows[0].split(',').map(h => h.trim());
-                    const rows = rawRows.slice(1).map(r => r.split(',').map(c => c.trim().replace(/"/g, '')));
-
-                    csvData = {
-                        filename: "Sheetops_Extracted_Tasks.csv",
-                        headers: headers,
-                        rows: rows
-                    };
-                    // We keep the code block visible but add the button below it
-                }
-            }
-
-            if (csvData) {
-                const btnId = "csv-" + Date.now();
-                window[btnId] = csvData;
-
-                const downloadHTML = `
-                    <div class="mt-4 p-4 bg-teal-500/10 border border-teal-500/20 rounded-2xl flex items-center justify-between border-dashed animate-pulse">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-teal-500/20 rounded-lg">
-                                <i data-lucide="file-spreadsheet" class="w-5 h-5 text-teal-400"></i>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-black text-teal-400 uppercase tracking-[0.2em]">Import Ready File</p>
-                                <p class="text-xs text-slate-300 font-medium">${csvData.filename}</p>
-                            </div>
-                        </div>
-                        <button onclick="window.downloadCSV('${btnId}')"
-                                class="flex items-center gap-2 px-4 py-2 bg-teal-500 text-[#0f172a] rounded-xl hover:bg-teal-400 transition-all font-bold text-xs shadow-lg shadow-teal-500/20">
-                            <i data-lucide="download" class="w-4 h-4"></i>
-                            DOWNLOAD
-                        </button>
-                    </div>
-                `;
-                // Append to output
-                chartHTML += downloadHTML;
-            }
-
-
             // --- STEP 7: PARSE OPTIONS ---
             if (data.options && data.options.length > 0) {
                 optionsHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">`;
@@ -1134,7 +1047,6 @@ async function sendMessage() {
             finalBotHTML = `
                 <div class="space-y-4">
                     <div class="bot-text-content leading-relaxed">${formattedText}</div>
-                    ${sentimentHTML}
                     ${chartHTML}
                     ${optionsHTML}
                 </div>`;
@@ -2121,31 +2033,6 @@ document.getElementById("user-input").addEventListener("keypress", (e) => {
 function setPrompt(text) {
     document.getElementById('user-input').value = text;
 }
-
-window.downloadCSV = function(dataId) {
-    const data = window[dataId];
-    if (!data) {
-        alert("Download data expired. Please try generating again.");
-        return;
-    }
-
-    // Build CSV Content
-    let csvContent = data.headers.join(",") + "\n";
-    data.rows.forEach(row => {
-        // Handle commas/quotes in data
-        const safeRow = row.map(val => `"${String(val).replace(/"/g, '""')}"`);
-        csvContent += safeRow.join(",") + "\n";
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", data.filename || "smartsheet_import.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-};
 
 window.startNewSession = function() {
     currentSessionId = null;

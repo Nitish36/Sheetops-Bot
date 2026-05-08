@@ -35,20 +35,8 @@ from crawlers.best_practices_crawler import get_best_practices
 from crawlers.b2b_crawler import get_b2b_trends
 from crawlers.ai_crawler import get_ai_trends
 from crawlers.unanswered import get_unanswered_questions
-from nlp_manager import UserBehaviorAnalyzer, ActionItemExtractor
-import textblob
-try:
-    textblob.TextBlob("test").sentiment
-except:
-    import nltk
-    os.system("python -m textblob.download_corpora")
-    nltk.download('punkt')
-    nltk.download('brown')
-    nltk.download('punkt_tab')
 
 load_dotenv()
-nlp_analyzer  = UserBehaviorAnalyzer()
-extractor = ActionItemExtractor()
 
 app = Flask(__name__,template_folder='template')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -108,18 +96,6 @@ provide a 'Manual Remediation Plan' with specific steps the Admin should take in
 6. COMPLIANCE: Remind the user of standard Smartsheet best practices (e.g., using 'Contact List' columns
 for owners instead of text strings).]\n\n
 
-[BEHAVIORAL ADAPTATION]:
-You are equipped with a 'Psychological Layer' that analyzes the user's prompt (NOT sheet data). 
-1. If [USER BEHAVIOR CONTEXT] indicates 'Frustrated' or 'High Urgency', be brief, highly professional, and skip all greetings. Focus ONLY on the solution.
-2. If the context indicates 'Satisfied' or 'Neutral', you may use your standard 'Lead Architect' mentoring tone.
-3. If the user's sentiment is notably positive or negative, you MUST append a Sentiment Chart tag at the end of your response to visualize the interaction vibe.\n\n
-
-[SENTIMENT CHART INSTRUCTION]:
-To visualize the user's interaction mood, append this JSON block at the very end (ONLY based on the user's prompt sentiment):
-[SENTIMENT_CHART: {"score": 0.8, "label": "Positive", "color": "#14b8a6"}]
-- Score range: -1.0 (Very Frustrated) to 1.0 (Very Happy).
-- Colors: #ef4444 (Negative), #f59e0b (Neutral/Anxious), #14b8a6 (Positive).\n\n
-
 [KNOWLEDGE MANAGEMENT RULES]:
 1. You have access to multiple internal documents labeled with <DOCUMENT_START>.
 2. If the user asks about Formulas or Syntax, prioritize info within 'formulas.md'.
@@ -129,9 +105,7 @@ To visualize the user's interaction mood, append this JSON block at the very end
 6. If the user asks about Premium Apps (Dynamic View, Data Shuttle, DataMesh, Bridge, Pivot App, WorkApps), prioritize 'asl.md'.
 7. If the user asks about external integrations (Jira, Salesforce, ServiceNow, Teams, Slack), prioritize 'connectors.md'.
 8. If the user reports an ERROR, a BROKEN SYNC, or asks for a HEALTH CHECK, you MUST prioritize 'troubleshooting.md'.
-9. If the user asks about People Planning, Capacity, Timesheets, or Utilization, you MUST prioritize 'resource_management.md'. Distinguish between "Basic Resource Management" (sheet-level) and "Resource Management by Smartsheet" (premium platform).
-10. If the user asks about Portfolio Scaling, Blueprints, Provisioning, or Global Updates (Columns, Profile Data, Dashboards), you MUST prioritize 'control_center.md'. Use an "Architect" tone to explain how to maintain consistency across large-scale projects.
-11. LIVE DATA: You have a "Live Crawler" tool.
+9. LIVE DATA: You have a "Live Crawler" tool.
     For general updates, use 'announcements'.
     For feature/software updates, use 'product releases'.
     For training, use 'events'.
@@ -165,14 +139,6 @@ Mention that you can pull live event schedules (Webinars, ENGAGE tours, and Trai
 2. Always cite the specific internal document you are referencing (e.g., 'According to our Onboarding Guide...').
 3. If a user asks a general question, always try to link it back to a specific tool in our Admin Toolkit (e.g., 
    'To solve this, I recommend using the Webhook Audit module in your Toolkit').
-4. When identifying tasks from messy notes, say: "I've analyzed your notes and extracted [X] specific action items..."
-
-[ENTITY EXTRACTION & CSV GENERATION]:
-1. If the user agrees to a CSV/Download, you MUST provide the JSON block below.
-2. CRITICAL: DO NOT use markdown code blocks (```csv). DO NOT use plain text.
-3. OUTPUT FORMAT: You must strictly end your response with this tag:
-   [CSV_DATA: {"filename": "Sheetops_Action_Items.csv", "headers": ["Task", "Owner", "Due Date"], "rows": [["Task 1", "Name", "Date"]]}]
-4. Any text inside [CSV_DATA] must be valid JSON.
 
 [ERROR RESOLUTION & HEALTH CHECKS]:
 When a user describes a failure (e.g., "The sync stopped"), consult 'troubleshooting.md'. 
@@ -1545,8 +1511,6 @@ def chat():
     data = request.json
     user_message = data.get("message")
     raw_history = data.get("history", [])
-    behavior_context = nlp_analyzer.get_behavioral_context(user_message)
-    extraction_context = extractor.get_extraction_context(user_message)
 
     # 1. SANITIZE SESSION ID (Prevents "null" string errors)
     session_id = data.get("session_id")
@@ -1643,7 +1607,7 @@ def chat():
         })
 
     # Check for Financial Services / Banking topics
-    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting"]
+    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting", "audit"]
     if any(word in user_message.lower() for word in finance_keywords):
         num_match = re.search(r'\d+', user_message)
         limit = int(num_match.group()) if num_match else 10
@@ -1726,8 +1690,6 @@ def chat():
             "session_id": str(session_id)
         })
 
-
-
     # 2. STRICT HISTORY CLEANER (Ensures Gemini 3 never gets malformed data)
     clean_history = []
     for msg in raw_history:
@@ -1743,8 +1705,6 @@ def chat():
             if txt:
                 clean_history.append({"role": role, "parts": [{"text": txt}]})
 
-        """if any(word in user_message.lower() for word in ["yes", "generate", "download"]) and "ENTITY EXTRACTION DATA" in str(clean_history):
-            prompt_to_send = f"{user_message} (REMINDER: You MUST use the [CSV_DATA: {{...}}] JSON format for the download button. Do NOT use markdown code blocks.)"""
 
     # 3. DATABASE: Create Session & Sync User if this is a new chat
     try:
@@ -1765,7 +1725,6 @@ def chat():
     # 4. PHASE 2 LOGIC: DETECT SHEET ID FOR AUDIT
     sheet_id_match = re.search(r'\b\d{15,20}\b', user_message)
     prompt_to_send = user_message
-
 
     if sheet_id_match:
         sheet_id = sheet_id_match.group()
@@ -1800,8 +1759,7 @@ def chat():
     if not clean_history:
         final_prompt = f"""
                 {SYSTEM_PROMPT}
-                {behavior_context}
-                {extraction_context}
+
                 <INTERNAL_CORPORATE_KNOWLEDGE>
                 {INTERNAL_KNOWLEDGE}
                 </INTERNAL_CORPORATE_KNOWLEDGE>
@@ -1809,7 +1767,7 @@ def chat():
                 USER REQUEST: {prompt_to_send}
                 """
     else:
-        final_prompt = f"{behavior_context}\n\nUSER REQUEST: {prompt_to_send}"
+        final_prompt = prompt_to_send
 
     try:
         # 6. GEMINI API CALL
