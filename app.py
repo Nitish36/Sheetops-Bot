@@ -1825,7 +1825,7 @@ def chat():
     try:
         # 6. GEMINI API CALL
         response = client.models.generate_content(
-            model='gemini-3-flash-preview',
+            model='gemini-1.5-flash',
             contents=clean_history + [{"role": "user", "parts": [{"text": final_prompt}]}]
         )
 
