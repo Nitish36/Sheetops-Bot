@@ -17,3 +17,5 @@ cryptography
 Flask-Limiter
 boto3
 gunicorn
+beautifulsoup4
+urllib3

@@ -723,18 +723,31 @@ async function sendMessage() {
     input.value = "";
     conversationView.parentElement.scrollTop = conversationView.parentElement.scrollHeight;
 
-    // 4. DISPLAY BOT PLACEHOLDER
+    // 4. DISPLAY BOT PLACEHOLDER (With Dynamic Progress Logic)
     const botId = "bot-" + Date.now();
+    const isAnnouncementReq = /announcement|community|what's new/i.test(msg);
+
     conversationView.innerHTML += `
         <div class="flex justify-start items-start gap-4 mb-4">
             <div class="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center">
                 <i data-lucide="bot" class="w-4 h-4 text-teal-400"></i>
             </div>
             <div id="${botId}" class="bg-slate-800/50 border border-slate-700 text-slate-200 px-4 py-3 rounded-2xl rounded-tl-none max-w-[80%] text-sm leading-relaxed">
-                Thinking...
+                <div class="flex items-center gap-3">
+                    <div class="w-4 h-4 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin"></div>
+                    <span id="text-${botId}">${isAnnouncementReq ? 'Contacting Community...' : 'Thinking...'}</span>
+                </div>
             </div>
         </div>`;
     lucide.createIcons();
+
+    // Small interval to update progress text if it's a scrape request
+    if (isAnnouncementReq) {
+        setTimeout(() => {
+            const el = document.getElementById(`text-${botId}`);
+            if (el) el.innerText = "Scraping live data...";
+        }, 1500);
+    }
 
     try {
         // 5. CALL BACKEND
@@ -747,95 +760,316 @@ async function sendMessage() {
         const data = await response.json();
         currentSessionId = data.session_id;
 
-        let responseText = data.response;
-        let chartHTML = "";
-        let optionsHTML = "";
+        let finalBotHTML = "";
 
-        // --- STEP 6: PARSE CHART DATA & METRICS ---
-        const chartMatch = responseText.match(/\[CHART_DATA:\s*({[\s\S]*?})\s*\]/);
-        if (chartMatch) {
-            try {
-                const chartData = JSON.parse(chartMatch[1]);
-                const canvasId = "canvas-" + botId;
-                
-                // Clean the text from raw JSON tags
-                responseText = responseText.replace(chartMatch[0], "").trim();
+        // --- NEW: BRANCH FOR COMMUNITY ANNOUNCEMENTS ---
+        if (data.type === "announcements") {
+            let cardsHTML = `<p class="mb-4 text-teal-400 font-semibold">${data.response}</p>
+                             <div class="grid grid-cols-1 gap-3">`;
 
-                // Generate Metrics Widget Grid
-                let metricsHTML = `<div class="grid grid-cols-2 gap-2 mb-4">`;
-                chartData.labels.forEach((label, index) => {
-                    const value = chartData.values[index];
-                    const color = chartData.colors[index];
-                    metricsHTML += `
-                        <div class="bg-slate-900/40 border-l-4 p-2 rounded-r-xl flex flex-col justify-center" style="border-color: ${color}">
-                            <span class="text-[8px] text-slate-500 uppercase font-bold tracking-tighter truncate">${label}</span>
-                            <span class="text-lg font-black text-white leading-none">${value}</span>
-                        </div>`;
-                });
-                metricsHTML += `</div>`;
-                
-                chartHTML = `
-                    <div class="mt-4 mb-2 p-4 bg-black/40 rounded-2xl border border-teal-500/20 shadow-xl">
-                        <p class="text-[9px] font-bold text-teal-500 uppercase tracking-[0.2em] mb-4 text-center">Sheet Health Scorecard</p>
-                        ${metricsHTML}
-                        <div style="height: 160px; position: relative;">
-                            <canvas id="${canvasId}"></canvas>
+            data.data.forEach(item => {
+                cardsHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-teal-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-teal-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-teal-400"></i>
+                        </div>
+                    </a>`;
+            });
+            cardsHTML += `</div>`;
+            finalBotHTML = cardsHTML;
+
+        } else if (data.type === "events") {
+            let eventHTML = `<p class="mb-4 text-teal-400 font-semibold">${data.response}</p>
+                             <div class="grid grid-cols-1 gap-4">`;
+
+            data.data.forEach(item => {
+                eventHTML += `
+                    <div class="p-4 bg-slate-900/60 border border-slate-700 rounded-2xl relative overflow-hidden group">
+                        <div class="flex flex-col gap-2">
+                            <div class="flex justify-between items-start">
+                                <span class="px-2 py-0.5 bg-teal-500/20 text-teal-400 text-[10px] font-bold uppercase rounded-md border border-teal-500/30">
+                                    ${item.format}
+                                </span>
+                                <span class="text-[10px] text-slate-500 font-medium">${item.location}</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-slate-100 mt-1">${item.title}</h4>
+                            <div class="flex items-center gap-2 text-xs text-slate-400">
+                                <i data-lucide="calendar" class="w-3 h-3"></i>
+                                <span>${item.date}</span>
+                            </div>
+                            <a href="${item.link}" target="_blank" class="mt-3 w-full py-2 bg-teal-500 text-[#0f172a] text-center text-xs font-bold rounded-xl hover:bg-teal-400 transition-colors">
+                                Register Now
+                            </a>
                         </div>
                     </div>`;
-
-                // Render Chart specifically after injection
-                setTimeout(() => {
-                    if (window.createChatChart) window.createChatChart(canvasId, chartData);
-                }, 300);
-            } catch (e) {
-                console.error("Chart Error:", e);
-            }
-        }
-
-        // --- STEP 7: PARSE DROPDOWN OPTIONS (Support Tickets) ---
-        if (data.options && data.options.length > 0) {
-            optionsHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">`;
-            data.options.forEach(opt => {
-                optionsHTML += `
-                    <button onclick="window.selectOption('${opt}')" class="px-3 py-2 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 text-[10px] font-bold uppercase hover:bg-teal-500 hover:text-[#0f172a] transition-all text-left flex justify-between items-center group">
-                        ${opt} <i data-lucide="chevron-right" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition"></i>
-                    </button>`;
             });
-            optionsHTML += `</div>`;
+            eventHTML += `</div>`;
+            finalBotHTML = eventHTML;
+        } else if (data.type === "product_news") {
+            let prodHTML = `<p class="mb-4 text-teal-400 font-semibold">${data.response}</p>
+                            <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                prodHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-blue-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[8px] font-bold uppercase rounded border border-blue-500/30">
+                                Feature Release
+                            </span>
+                            <i data-lucide="zap" class="w-3 h-3 text-blue-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-blue-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-blue-400"></i>
+                        </div>
+                    </a>`;
+            });
+            prodHTML += `</div>`;
+            finalBotHTML = prodHTML;
+        }else if (data.type === "pmo_trends") {
+            let pmoHTML = `<p class="mb-4 text-indigo-400 font-semibold">${data.response}</p>
+                           <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                pmoHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-indigo-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 text-[8px] font-bold uppercase rounded border border-indigo-500/30">
+                                PMO Strategy
+                            </span>
+                            <i data-lucide="trending-up" class="w-3 h-3 text-indigo-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-indigo-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-indigo-400"></i>
+                        </div>
+                    </a>`;
+            });
+            pmoHTML += `</div>`;
+            finalBotHTML = pmoHTML;
+        } else if (data.type === "healthcare_trends") {
+            let hcHTML = `<p class="mb-4 text-emerald-400 font-semibold">${data.response}</p>
+                          <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                hcHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-emerald-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[8px] font-bold uppercase rounded border border-emerald-500/30">
+                                Healthcare & Life Sciences
+                            </span>
+                            <i data-lucide="heart-pulse" class="w-3 h-3 text-emerald-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-emerald-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-emerald-400"></i>
+                        </div>
+                    </a>`;
+            });
+            hcHTML += `</div>`;
+            finalBotHTML = hcHTML;
+        } else if (data.type === "finance_trends") {
+            let finHTML = `<p class="mb-4 text-amber-400 font-semibold">${data.response}</p>
+                          <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                finHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-amber-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-[8px] font-bold uppercase rounded border border-amber-500/30">
+                                Financial Services
+                            </span>
+                            <i data-lucide="landmark" class="w-3 h-3 text-amber-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-amber-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-amber-400"></i>
+                        </div>
+                    </a>`;
+            });
+            finHTML += `</div>`;
+            finalBotHTML = finHTML;
+        }else if (data.type === "it_trends") {
+            let itHTML = `<p class="mb-4 text-violet-400 font-semibold">${data.response}</p>
+                          <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                itHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-violet-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-violet-500/20 text-violet-400 text-[8px] font-bold uppercase rounded border border-violet-500/30">
+                                Digital IT Portfolio
+                            </span>
+                            <i data-lucide="cpu" class="w-3 h-3 text-violet-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-violet-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-violet-400"></i>
+                        </div>
+                    </a>`;
+            });
+            itHTML += `</div>`;
+            finalBotHTML = itHTML;
+        }else if (data.type === "best_practices") {
+            let bpHTML = `<p class="mb-4 text-sky-400 font-semibold">${data.response}</p>
+                          <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                bpHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-sky-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-sky-500/20 text-sky-400 text-[8px] font-bold uppercase rounded border border-sky-500/30">
+                                Expert Standards
+                            </span>
+                            <i data-lucide="sparkles" class="w-3 h-3 text-sky-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-sky-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-sky-400"></i>
+                        </div>
+                    </a>`;
+            });
+            bpHTML += `</div>`;
+            finalBotHTML = bpHTML;
+        }else if (data.type === "b2b_trends") {
+            let b2bHTML = `<p class="mb-4 text-rose-400 font-semibold">${data.response}</p>
+                          <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                b2bHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-rose-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-rose-500/20 text-rose-400 text-[8px] font-bold uppercase rounded border border-rose-500/30">
+                                B2B Operations
+                            </span>
+                            <i data-lucide="briefcase" class="w-3 h-3 text-rose-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-rose-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-rose-400"></i>
+                        </div>
+                    </a>`;
+            });
+            b2bHTML += `</div>`;
+            finalBotHTML = b2bHTML;
+        }else if (data.type === "ai_trends") {
+            let aiHTML = `<p class="mb-4 text-fuchsia-400 font-semibold">${data.response}</p>
+                          <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                aiHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-fuchsia-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-fuchsia-500/20 text-fuchsia-400 text-[8px] font-bold uppercase rounded border border-fuchsia-500/30">
+                                AI & Innovation
+                            </span>
+                            <i data-lucide="wand-2" class="w-3 h-3 text-fuchsia-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-fuchsia-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-fuchsia-400"></i>
+                        </div>
+                    </a>`;
+            });
+            aiHTML += `</div>`;
+            finalBotHTML = aiHTML;
+        }else if (data.type === "unanswered_questions") {
+            let helpHTML = `<p class="mb-4 text-orange-400 font-semibold">${data.response}</p>
+                           <div class="grid grid-cols-1 gap-3">`;
+
+            data.data.forEach(item => {
+                helpHTML += `
+                    <a href="${item.link}" target="_blank" class="block p-4 bg-slate-900/60 border border-slate-700 hover:border-orange-500/50 rounded-xl transition-all group">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="px-2 py-0.5 bg-orange-500/20 text-orange-400 text-[8px] font-bold uppercase rounded border border-orange-500/30">
+                                Needs Answer
+                            </span>
+                            <i data-lucide="help-circle" class="w-3 h-3 text-orange-400"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-slate-200 group-hover:text-orange-400 transition-colors">${item.title}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-orange-400"></i>
+                        </div>
+                    </a>`;
+            });
+            helpHTML += `</div>`;
+            finalBotHTML = helpHTML;
+        }else {
+            // --- STANDARD BOT LOGIC (CHARTS & OPTIONS) ---
+            let responseText = data.response;
+            let chartHTML = "";
+            let optionsHTML = "";
+
+            // --- STEP 6: PARSE CHART DATA ---
+            const chartMatch = responseText.match(/\[CHART_DATA:\s*({[\s\S]*?})\s*\]/);
+            if (chartMatch) {
+                try {
+                    const chartData = JSON.parse(chartMatch[1]);
+                    const canvasId = "canvas-" + botId;
+                    responseText = responseText.replace(chartMatch[0], "").trim();
+
+                    let metricsHTML = `<div class="grid grid-cols-2 gap-2 mb-4">`;
+                    chartData.labels.forEach((label, index) => {
+                        const value = chartData.values[index];
+                        const color = chartData.colors[index];
+                        metricsHTML += `
+                            <div class="bg-slate-900/40 border-l-4 p-2 rounded-r-xl flex flex-col justify-center" style="border-color: ${color}">
+                                <span class="text-[8px] text-slate-500 uppercase font-bold tracking-tighter truncate">${label}</span>
+                                <span class="text-lg font-black text-white leading-none">${value}</span>
+                            </div>`;
+                    });
+                    metricsHTML += `</div>`;
+
+                    chartHTML = `<div class="mt-4 mb-2 p-4 bg-black/40 rounded-2xl border border-teal-500/20 shadow-xl">
+                                    <p class="text-[9px] font-bold text-teal-500 uppercase tracking-[0.2em] mb-4 text-center">Sheet Health Scorecard</p>
+                                    ${metricsHTML}
+                                    <div style="height: 160px; position: relative;"><canvas id="${canvasId}"></canvas></div>
+                                 </div>`;
+
+                    setTimeout(() => { if (window.createChatChart) window.createChatChart(canvasId, chartData); }, 300);
+                } catch (e) { console.error("Chart Error:", e); }
+            }
+
+            // --- STEP 7: PARSE OPTIONS ---
+            if (data.options && data.options.length > 0) {
+                optionsHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">`;
+                data.options.forEach(opt => {
+                    optionsHTML += `
+                        <button onclick="window.selectOption('${opt}')" class="px-3 py-2 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 text-[10px] font-bold uppercase hover:bg-teal-500 hover:text-[#0f172a] transition-all text-left flex justify-between items-center group">
+                            ${opt} <i data-lucide="chevron-right" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition"></i>
+                        </button>`;
+                });
+                optionsHTML += `</div>`;
+            }
+
+            const formattedText = responseText.replace(/\n/g, '<br>');
+            finalBotHTML = `
+                <div class="space-y-4">
+                    <div class="bot-text-content leading-relaxed">${formattedText}</div>
+                    ${chartHTML}
+                    ${optionsHTML}
+                </div>`;
         }
 
-        // --- STEP 8: CONSTRUCT FINAL HTML ---
-        const formattedText = responseText.replace(/\n/g, '<br>');
-        
-        const botHTML = `
-            <div class="space-y-4">
-                <div class="bot-text-content leading-relaxed">${formattedText}</div>
-                
-                ${chartHTML}
-                ${optionsHTML}
+        // 9. INJECT FINAL CONTENT AND FEEDBACK BUTTONS
+        const feedbackHTML = `
+            <div class="feedback-buttons flex items-center gap-4 pt-4 mt-4 border-t border-slate-700/30">
+                <span class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Helpful?</span>
+                <button onclick="logFeedback('${botId}', 'helpful')" class="text-slate-500 hover:text-teal-400 transition group"><i data-lucide="thumbs-up" class="w-3 h-3"></i></button>
+                <button onclick="logFeedback('${botId}', 'not-helpful')" class="text-slate-500 hover:text-red-400 transition group"><i data-lucide="thumbs-down" class="w-3 h-3"></i></button>
+            </div>`;
 
-                <div class="feedback-buttons flex items-center gap-4 pt-2 border-t border-slate-700/30">
-                    <span class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Helpful?</span>
-                    <button onclick="logFeedback('${botId}', 'helpful')" class="text-slate-500 hover:text-teal-400 transition group">
-                        <i data-lucide="thumbs-up" class="w-3 h-3"></i>
-                    </button>
-                    <button onclick="logFeedback('${botId}', 'not-helpful')" class="text-slate-500 hover:text-red-400 transition group">
-                        <i data-lucide="thumbs-down" class="w-3 h-3"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-
-        // 9. INJECT AND CLEANUP
-        document.getElementById(botId).innerHTML = botHTML;
+        document.getElementById(botId).innerHTML = finalBotHTML + feedbackHTML;
         lucide.createIcons();
 
+        // 10. HISTORY & SIDEBAR UPDATES
         if (data.new_history_entry) {
             chatHistory.push(data.new_history_entry[0]);
             chatHistory.push(data.new_history_entry[1]);
         }
-        
-        loadSidebarSessions();
+
+        if (window.loadSidebarSessions) window.loadSidebarSessions();
         conversationView.parentElement.scrollTop = conversationView.parentElement.scrollHeight;
 
     } catch (e) {
