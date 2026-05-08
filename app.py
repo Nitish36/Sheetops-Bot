@@ -436,6 +436,58 @@ def get_sm_client():
             print(f"Decryption error: {e}")
     return None
 
+
+def get_specific_knowledge(user_message):
+    """
+    Scans keywords in the user message and returns only
+    the relevant .md file content.
+    """
+    kb_path = "knowledge/"  # Ensure this matches your folder name
+
+    # Keyword to File Mapping
+    mapping = {
+        "formula": "formulas.md",
+        "syntax": "formulas.md",
+        "data shuttle": "asl.md",
+        "datamesh": "asl.md",
+        "dynamic view": "asl.md",
+        "pivot": "asl.md",
+        "bridge": "asl.md",
+        "control center": "control_center.md",
+        "blueprint": "control_center.md",
+        "provisioning": "control_center.md",
+        "resource": "resource_management.md",
+        "utilization": "resource_management.md",
+        "capacity": "resource_management.md",
+        "jira": "connectors.md",
+        "salesforce": "connectors.md",
+        "governance": "governance.md",
+        "permission": "governance.md",
+        "error": "troubleshooting.md",
+        "broken": "troubleshooting.md",
+        "help": "onboarding.md",
+        "guide": "onboarding.md"
+    }
+
+    selected_content = ""
+    user_msg_lower = user_message.lower()
+
+    for keyword, filename in mapping.items():
+        if keyword in user_msg_lower:
+            file_path = os.path.join(kb_path, filename)
+            if os.path.exists(file_path):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    selected_content += f"\n--- DOCUMENT: {filename} ---\n" + f.read()
+
+    # If no keyword matches, provide a small general summary or the onboarding guide
+    if not selected_content:
+        onboard_path = os.path.join(kb_path, "onboarding.md")
+        if os.path.exists(onboard_path):
+            with open(onboard_path, "r", encoding="utf-8") as f:
+                selected_content = f.read()
+
+    return selected_content
+
 @app.route('/check-connection')
 @login_required
 def check_connection():
@@ -1607,7 +1659,7 @@ def chat():
         })
 
     # Check for Financial Services / Banking topics
-    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting", "audit"]
+    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting"]
     if any(word in user_message.lower() for word in finance_keywords):
         num_match = re.search(r'\d+', user_message)
         limit = int(num_match.group()) if num_match else 10
@@ -1757,11 +1809,12 @@ def chat():
 
     # 5. PREPEND SYSTEM PROMPT (Only for the very first message)
     if not clean_history:
+        relevant_kb = get_specific_knowledge(user_message)
         final_prompt = f"""
                 {SYSTEM_PROMPT}
 
                 <INTERNAL_CORPORATE_KNOWLEDGE>
-                {INTERNAL_KNOWLEDGE}
+                {relevant_kb}
                 </INTERNAL_CORPORATE_KNOWLEDGE>
 
                 USER REQUEST: {prompt_to_send}
