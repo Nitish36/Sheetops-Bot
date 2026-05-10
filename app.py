@@ -34,7 +34,6 @@ from crawlers.digital_it import get_it_trends
 from crawlers.best_practices_crawler import get_best_practices
 from crawlers.b2b_crawler import get_b2b_trends
 from crawlers.ai_crawler import get_ai_trends
-from crawlers.unanswered import get_unanswered_questions
 
 load_dotenv()
 
@@ -116,7 +115,6 @@ for owners instead of text strings).]\n\n
     For optimization and standards, use 'best practices'.
     For vendor management or client-facing operations, use 'B2B trends'.
     Future Tech: For Smartsheet AI, Gemini, or Automation features, use 'AI trends'.
-    Community Contribution: For unanswered questions or users wanting to help others, use 'unanswered questions'.
     
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -435,58 +433,6 @@ def get_sm_client():
         except Exception as e:
             print(f"Decryption error: {e}")
     return None
-
-
-def get_specific_knowledge(user_message):
-    """
-    Scans keywords in the user message and returns only
-    the relevant .md file content.
-    """
-    kb_path = "knowledge/"  # Ensure this matches your folder name
-
-    # Keyword to File Mapping
-    mapping = {
-        "formula": "formulas.md",
-        "syntax": "formulas.md",
-        "data shuttle": "asl.md",
-        "datamesh": "asl.md",
-        "dynamic view": "asl.md",
-        "pivot": "asl.md",
-        "bridge": "asl.md",
-        "control center": "control_center.md",
-        "blueprint": "control_center.md",
-        "provisioning": "control_center.md",
-        "resource": "resource_management.md",
-        "utilization": "resource_management.md",
-        "capacity": "resource_management.md",
-        "jira": "connectors.md",
-        "salesforce": "connectors.md",
-        "governance": "governance.md",
-        "permission": "governance.md",
-        "error": "troubleshooting.md",
-        "broken": "troubleshooting.md",
-        "help": "onboarding.md",
-        "guide": "onboarding.md"
-    }
-
-    selected_content = ""
-    user_msg_lower = user_message.lower()
-
-    for keyword, filename in mapping.items():
-        if keyword in user_msg_lower:
-            file_path = os.path.join(kb_path, filename)
-            if os.path.exists(file_path):
-                with open(file_path, "r", encoding="utf-8") as f:
-                    selected_content += f"\n--- DOCUMENT: {filename} ---\n" + f.read()
-
-    # If no keyword matches, provide a small general summary or the onboarding guide
-    if not selected_content:
-        onboard_path = os.path.join(kb_path, "onboarding.md")
-        if os.path.exists(onboard_path):
-            with open(onboard_path, "r", encoding="utf-8") as f:
-                selected_content = f.read()
-
-    return selected_content
 
 @app.route('/check-connection')
 @login_required
@@ -1659,7 +1605,7 @@ def chat():
         })
 
     # Check for Financial Services / Banking topics
-    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting"]
+    finance_keywords = ["finance", "financial", "banking", "insurance", "investment", "accounting", "audit"]
     if any(word in user_message.lower() for word in finance_keywords):
         num_match = re.search(r'\d+', user_message)
         limit = int(num_match.group()) if num_match else 10
@@ -1725,20 +1671,6 @@ def chat():
             "type": "ai_trends",
             "data": trends,
             "response": f"I've crawled the latest discussions on AI and Innovation. here are the top {len(trends)} trending topics:",
-            "session_id": str(session_id)
-        })
-
-    # Check for Unanswered / Help needed topics
-    help_keywords = ["unanswered", "no replies", "help others", "unresolved", "community help"]
-    if any(word in user_message.lower() for word in help_keywords):
-        num_match = re.search(r'\d+', user_message)
-        limit = int(num_match.group()) if num_match else 10
-        questions = get_unanswered_questions(limit)
-
-        return jsonify({
-            "type": "unanswered_questions",
-            "data": questions,
-            "response": f"I've found {len(questions)} recent discussions that haven't received an answer yet. Here's where the community needs your help:",
             "session_id": str(session_id)
         })
 
@@ -1809,12 +1741,11 @@ def chat():
 
     # 5. PREPEND SYSTEM PROMPT (Only for the very first message)
     if not clean_history:
-        relevant_kb = get_specific_knowledge(user_message)
         final_prompt = f"""
                 {SYSTEM_PROMPT}
 
                 <INTERNAL_CORPORATE_KNOWLEDGE>
-                {relevant_kb}
+                {INTERNAL_KNOWLEDGE}
                 </INTERNAL_CORPORATE_KNOWLEDGE>
 
                 USER REQUEST: {prompt_to_send}
@@ -1825,7 +1756,7 @@ def chat():
     try:
         # 6. GEMINI API CALL
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-3-flash-preview',
             contents=clean_history + [{"role": "user", "parts": [{"text": final_prompt}]}]
         )
 
