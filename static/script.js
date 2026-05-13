@@ -281,122 +281,56 @@ async function handleBuilderUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // 1. DYNAMIC LOADING STATE
+    // Show loading state
     const uploadZone = document.getElementById('builder-upload-zone');
-    uploadZone.innerHTML = `
-        <div class="animate-pulse flex flex-col items-center">
-            <div class="relative w-16 h-16 mb-4">
-                <i data-lucide="loader" class="w-16 h-16 text-teal-500 animate-spin absolute"></i>
-                <i data-lucide="shield-check" class="w-8 h-8 text-teal-200 absolute top-4 left-4"></i>
-            </div>
-            <p class="text-white font-black uppercase tracking-[0.3em] text-[10px]">Deep Analysis in Progress...</p>
-            <p class="text-slate-500 text-[9px] mt-2 italic">Scanning for Risks & Resource Gaps</p>
-        </div>`;
+    uploadZone.innerHTML = `<div class="animate-pulse flex flex-col items-center"><i data-lucide="loader" class="w-10 h-10 text-teal-500 animate-spin mb-4"></i><p class="text-white font-bold uppercase tracking-widest text-xs">Architecting Dashboard...</p></div>`;
     lucide.createIcons();
 
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-        const response = await fetch('/generate-dashboard', {
-            method: 'POST',
-            headers: {'X-CSRFToken': getCsrfToken()},
-            body: formData
-        });
-        const data = await response.json(); // Expecting: health_score, metrics, charts, resources, summary
+        const response = await fetch('/generate-dashboard', { method: 'POST' ,headers: {'X-CSRFToken': getCsrfToken()}, body: formData });
+        const data = await response.json();
 
-        // Reveal Results Area
+        // 1. Reveal Results Area
         document.getElementById('builder-results').classList.remove('hidden');
         uploadZone.classList.add('hidden');
 
-        // 2. TIER 1: EXECUTIVE HEALTH & METRICS
+        // 2. Render Metrics (Scorecards)
         const metricsContainer = document.getElementById('builder-metrics');
-
-        // Inject Health Score first
-        let metricsHTML = `
-            <div class="col-span-full mb-4 p-6 bg-slate-900/80 border border-teal-500/30 rounded-[2rem] flex items-center justify-between shadow-2xl">
-                <div>
-                    <p class="text-[10px] text-teal-500 uppercase font-black tracking-widest mb-1">Portfolio Health Score</p>
-                    <h2 class="text-5xl font-black text-white">${data.health_score}%</h2>
-                </div>
-                <div class="w-1/2 h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-                    <div class="h-full bg-gradient-to-r from-red-500 via-amber-500 to-teal-500" style="width: ${data.health_score}%"></div>
-                </div>
-            </div>
-        `;
-
-        // Add 4 Critical Scorecards
-        metricsHTML += data.metrics.map(m => `
-            <div class="p-6 bg-slate-900/40 border-l-4 rounded-r-2xl border-slate-800 hover:bg-slate-800/40 transition" style="border-color: ${m.color || '#14b8a6'}">
+        metricsContainer.innerHTML = data.metrics.map(m => `
+            <div class="p-6 bg-slate-900/60 border-l-4 rounded-r-2xl" style="border-color: ${getColor(m.color)}">
                 <p class="text-[9px] text-slate-500 uppercase font-bold mb-1">${m.label}</p>
                 <p class="text-2xl font-black text-white">${m.value}</p>
             </div>
         `).join('');
-        metricsContainer.innerHTML = metricsHTML;
 
-        // 3. TIER 2: ANALYTICS (Charts Side-by-Side)
+        // 3. Render Charts
         const chartsContainer = document.getElementById('builder-charts');
-        chartsContainer.className = "grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"; // Force 2 columns
         chartsContainer.innerHTML = data.charts.map((c, i) => `
-            <div class="p-8 bg-slate-900/60 border border-slate-800 rounded-[2.5rem] shadow-xl relative overflow-hidden">
-                <div class="flex justify-between items-center mb-6">
-                    <p class="text-xs font-bold text-teal-500 uppercase tracking-widest">${c.title}</p>
-                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-600"></i>
-                </div>
+            <div class="p-8 bg-slate-900/60 border border-slate-800 rounded-[30px]">
+                <p class="text-xs font-bold text-teal-500 uppercase tracking-widest mb-6">${c.title}</p>
                 <div style="height: 250px;"><canvas id="builder-chart-${i}"></canvas></div>
             </div>
         `).join('');
 
         data.charts.forEach((c, i) => {
-            setTimeout(() => {
-                // Determine chart type: status usually doughnut, risks/trends bar
-                const chartType = c.title.toLowerCase().includes('status') ? 'doughnut' : 'bar';
-                window.createChatChart(`builder-chart-${i}`, c, chartType);
-            }, 100);
+            setTimeout(() => window.createChatChart(`builder-chart-${i}`, c), 100);
         });
 
-        // 4. TIER 3: RESOURCE ALLOCATION & AI INSIGHT
-        const summarySection = document.getElementById('builder-ai-summary');
-
-        // Build Resource List if data exists
-        let resourceHTML = "";
-        if (data.resources) {
-            resourceHTML = `
-                <div class="mb-8 p-8 bg-black/40 border border-slate-800 rounded-[2.5rem]">
-                    <p class="text-xs font-bold text-amber-500 uppercase tracking-widest mb-6">Resource Allocation Bottlenecks</p>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        ${data.resources.map(r => `
-                            <div class="flex justify-between items-center p-3 bg-slate-900/50 rounded-xl border border-slate-800">
-                                <span class="text-xs text-slate-300 font-medium">${r.name}</span>
-                                <span class="text-xs font-black ${r.count > 5 ? 'text-red-500' : 'text-teal-500'}">${r.count} Tasks</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        summarySection.innerHTML = `
-            ${resourceHTML}
-            <div class="p-8 bg-gradient-to-br from-teal-500/10 to-transparent border border-teal-500/20 rounded-[2.5rem]">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center">
-                        <i data-lucide="sparkles" class="w-4 h-4 text-[#0f172a]"></i>
-                    </div>
-                    <p class="text-xs font-black text-white uppercase tracking-widest">Lead Architect Strategic Insight</p>
-                </div>
-                <p class="text-slate-300 text-sm leading-relaxed italic">"${data.summary}"</p>
-            </div>
-        `;
-
-        lucide.createIcons();
-        window.scrollTo({ top: document.getElementById('builder-results').offsetTop, behavior: 'smooth' });
+        // 4. Render AI Summary
+        document.getElementById('builder-ai-summary').innerText = "AI INSIGHT: " + data.summary;
 
     } catch (e) {
-        console.error("Dashboard Detail Error:", e);
-        alert("Architectural analysis failed. Ensure the file data is valid.");
+        alert("Dashboard generation failed.");
         location.reload();
     }
+}
+
+function getColor(name) {
+    const colors = { "Teal": "#14b8a6", "Red": "#ef4444", "Blue": "#3b82f6", "Amber": "#f59e0b" };
+    return colors[name] || "#14b8a6";
 }
 
 
