@@ -975,28 +975,41 @@ async function sendMessage() {
             aiHTML += `</div>`;
             finalBotHTML = aiHTML;
         }else if (data.type === "smartsheet_status") {
+            // Header with Overall Status
             let statusHTML = `
                 <div class="mb-4">
-                    <p class="text-sm font-bold text-slate-200 mb-1">Overall Status</p>
-                    <div class="flex items-center gap-2 p-3 bg-slate-900/60 border border-slate-700 rounded-xl">
-                        <div class="w-3 h-3 rounded-full animate-pulse" style="background-color: ${data.data.components[0].color}"></div>
-                        <span class="text-teal-400 font-bold">${data.data.overall}</span>
+                    <div class="flex items-center justify-between p-3 rounded-xl border mb-4"
+                         style="background-color: ${data.data.overall.toLowerCase().includes('all') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)'};
+                                border-color: ${data.data.overall.toLowerCase().includes('all') ? '#10b981' : '#f59e0b'}">
+                        <span class="text-sm font-bold" style="color: ${data.data.overall.toLowerCase().includes('all') ? '#10b981' : '#f59e0b'}">
+                            ${data.data.overall}
+                        </span>
+                        <div class="w-3 h-3 rounded-full animate-pulse" style="background-color: ${data.data.overall.toLowerCase().includes('all') ? '#10b981' : '#f59e0b'}"></div>
                     </div>
                 </div>
-                <p class="text-xs text-slate-500 uppercase font-black tracking-widest mb-3">Service Breakdown</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">`;
 
+                <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-2 px-1">Service Breakdown</p>
+
+                <div class="space-y-1 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">`;
+
+            // Loop through ALL components
             data.data.components.forEach(item => {
                 statusHTML += `
-                    <div class="flex items-center justify-between p-3 bg-slate-800/30 border border-slate-700/50 rounded-lg">
-                        <span class="text-xs text-slate-300">${item.name}</span>
+                    <div class="flex items-center justify-between p-2.5 bg-slate-800/30 border border-slate-700/50 rounded-lg hover:bg-slate-800/50 transition-colors">
+                        <span class="text-[11px] text-slate-300 font-medium">${item.name}</span>
                         <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-bold uppercase" style="color: ${item.color}">${item.status}</span>
+                            <span class="text-[9px] font-bold uppercase tracking-tight" style="color: ${item.color}">${item.status}</span>
                             <div class="w-1.5 h-1.5 rounded-full" style="background-color: ${item.color}"></div>
                         </div>
                     </div>`;
             });
-            statusHTML += `</div><p class="mt-4 text-[9px] text-slate-600 italic">Source: status.smartsheet.com</p>`;
+
+            statusHTML += `</div>
+                           <div class="mt-3 pt-3 border-t border-slate-700/50 flex justify-between items-center">
+                               <span class="text-[9px] text-slate-600 italic">Live data from status.smartsheet.com</span>
+                               <a href="https://status.smartsheet.com" target="_blank" class="text-[9px] text-teal-500 font-bold hover:underline">Full Report →</a>
+                           </div>`;
+
             finalBotHTML = statusHTML;
         }else {
             // --- STANDARD BOT LOGIC (CHARTS & OPTIONS) ---
