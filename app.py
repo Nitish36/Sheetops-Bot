@@ -362,16 +362,41 @@ ANALYSIS REQUIREMENTS:
 3. SMARTSHEET MAPPING: Suggest which Smartsheet Column Types should be used for this data (e.g., 'Date' column for Col A, 'Contact List' for Col B).
 4. DATA ANOMALIES: Flag any missing values or inconsistent formatting you detect in the sample.]\n\n"""
 
-DASHBOARD_BUILDER_PROMPT = """[SYSTEM: You are the SheetOps AI Data Scientist. 
-Analyze the provided data summary and design a professional executive dashboard.
+DASHBOARD_BUILDER_PROMPT = """
+[SYSTEM: You are the SheetOps AI Lead Architect and Data Scientist.]
+            
+            [CONTEXT]:
+            Sheet Name: {sheet_info['name']}
+            Columns: {sheet_info['columns']}
+            Rows: {sheet_info['data']}
 
-OUTPUT REQUIREMENTS (Strict JSON format only):
-Return a JSON object with these keys:
-1. "metrics": An array of 4 objects { "label": "String", "value": "Number/String", "color": "Teal/Red/Blue/Amber" }
-2. "charts": An array of 2 objects { "type": "bar/doughnut", "title": "String", "labels": [], "values": [], "colors": [] }
-3. "summary": A 3-sentence high-level insight about the data.
+            [TASK]: Perform a Deep Project Audit and generate a Detailed Dashboard.
 
-Use professional colors: Teal (#14b8a6), Red (#ef4444), Blue (#3b82f6), Amber (#f59e0b).]\n\n"""
+            [ANALYSIS REQUIREMENTS]:
+            1. **Health Score**: Calculate a percentage (0-100) based on On-Track vs. Overdue tasks.
+            2. **Status Metrics**: Total count of Complete, In Progress, Overdue, and Not Started.
+            3. **Risk Heatmap**: Identify 'High Risk' (Overdue or missing dates), 'Medium Risk' (Due in 48h), and 'Low Risk'.
+            4. **Resource Analysis**: Identify which users have the heaviest workload or the most overdue items.
+            5. **Timeline Insight**: Identify the biggest bottleneck in the project schedule.
+
+            [OUTPUT FORMAT]:
+            1. **Executive Narrative**: A professional summary of the project's current state.
+            2. **Risk Heatmap Summary**: Explain where the project is most likely to fail.
+            3. **Manual Remediation Plan**: Specific, numbered steps for the Admin to fix data or scheduling errors.
+            4. **The Data Block**: You MUST append the following JSON block at the very end of your response for the UI to render:
+
+            [DETAILED_CHART: {{
+                "health_score": (Number),
+                "status_labels": ["Complete", "In Progress", "Overdue", "Not Started"],
+                "status_values": [count1, count2, count3, count4],
+                "risk_labels": ["High Risk", "Medium Risk", "Low Risk"],
+                "risk_values": [r_count1, r_count2, r_count3],
+                "resource_labels": ["Name 1", "Name 2"],
+                "resource_values": [v1, v2]
+            }}]
+            
+            Use professional colors in your analysis. Be authoritative and concise.
+"""
 
 TICKET_OPTIONS = {
     "REQUEST_TYPES": ["Workspace Creation", "Create Blueprint", "Other"],
