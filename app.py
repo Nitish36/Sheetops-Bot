@@ -34,7 +34,7 @@ from crawlers.digital_it import get_it_trends
 from crawlers.best_practices_crawler import get_best_practices
 from crawlers.b2b_crawler import get_b2b_trends
 from crawlers.ai_crawler import get_ai_trends
-
+from crawlers.smartsheet_status import get_smartsheet_system_status
 load_dotenv()
 
 app = Flask(__name__,template_folder='template')
@@ -114,7 +114,8 @@ for owners instead of text strings).]\n\n
     For IT, Software Development, or Digital Transformation, use 'IT trends'.
     For optimization and standards, use 'best practices'.
     For vendor management or client-facing operations, use 'B2B trends'.
-    Future Tech: For Smartsheet AI, Gemini, or Automation features, use 'AI trends'.
+    For Smartsheet AI, Gemini, or Automation features, use 'AI trends'.
+    For system health, outages, or checking if Smartsheet is down, use 'smartsheet status'.
     
 [ONBOARDING & GUIDANCE]: 
 If a user is new, asks "How do I start?", or asks about SheetOps features, prioritize 'onboarding_guide.md'. 
@@ -1673,6 +1674,18 @@ def chat():
             "response": f"I've crawled the latest discussions on AI and Innovation. here are the top {len(trends)} trending topics:",
             "session_id": str(session_id)
         })
+
+    status_keywords = ["smartsheet status", "is smartsheet down", "system health", "outage", "operational"]
+    if any(word in user_message.lower() for word in status_keywords):
+        status_data = get_smartsheet_system_status()
+
+        if status_data:
+            return jsonify({
+                "type": "smartsheet_status",
+                "data": status_data,
+                "response": f"System Health Check: {status_data['overall']}. I have verified the status of all core Smartsheet services.",
+                "session_id": str(session_id)
+            })
 
     # 2. STRICT HISTORY CLEANER (Ensures Gemini 3 never gets malformed data)
     clean_history = []

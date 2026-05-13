@@ -974,6 +974,30 @@ async function sendMessage() {
             });
             aiHTML += `</div>`;
             finalBotHTML = aiHTML;
+        }else if (data.type === "smartsheet_status") {
+            let statusHTML = `
+                <div class="mb-4">
+                    <p class="text-sm font-bold text-slate-200 mb-1">Overall Status</p>
+                    <div class="flex items-center gap-2 p-3 bg-slate-900/60 border border-slate-700 rounded-xl">
+                        <div class="w-3 h-3 rounded-full animate-pulse" style="background-color: ${data.data.components[0].color}"></div>
+                        <span class="text-teal-400 font-bold">${data.data.overall}</span>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 uppercase font-black tracking-widest mb-3">Service Breakdown</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">`;
+
+            data.data.components.forEach(item => {
+                statusHTML += `
+                    <div class="flex items-center justify-between p-3 bg-slate-800/30 border border-slate-700/50 rounded-lg">
+                        <span class="text-xs text-slate-300">${item.name}</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold uppercase" style="color: ${item.color}">${item.status}</span>
+                            <div class="w-1.5 h-1.5 rounded-full" style="background-color: ${item.color}"></div>
+                        </div>
+                    </div>`;
+            });
+            statusHTML += `</div><p class="mt-4 text-[9px] text-slate-600 italic">Source: status.smartsheet.com</p>`;
+            finalBotHTML = statusHTML;
         }else {
             // --- STANDARD BOT LOGIC (CHARTS & OPTIONS) ---
             let responseText = data.response;
