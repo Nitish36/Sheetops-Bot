@@ -128,32 +128,39 @@ async function handleFinanceUpload(event) {
     try {
         const response = await fetch('/generate-budget-email', { 
             method: 'POST', 
-            headers: { 'X-CSRFToken': getCsrfToken() }, // Ensure CSRF is here
+            headers: { 'X-CSRFToken': getCsrfToken() }, 
             body: formData 
         });
-        const data = await response.json();
 
-        // 1. Reveal results
-        document.getElementById('finance-results').classList.remove('hidden');
-        uploadZone.innerHTML = originalZoneHTML; // Restore for next use
-        
-        // 2. Inject HTML into an iframe or Div
-        // Note: Using a Div is easier for your existing PDF export
-        const preview = document.getElementById('finance-preview-content');
-        preview.innerHTML = data.html;
-
-        // 3. Re-run any scripts contained in the AI's HTML (for the Charts)
-        const scripts = preview.getElementsByTagName('script');
-        for (let i = 0; i < scripts.length; i++) {
-            eval(scripts[i].innerText);
+        // NEW: Check if response is actually JSON
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Server returned non-JSON:", errorText);
+            throw new Error("Server Error: Check Console");
         }
 
-        lucide.createIcons();
-        preview.scrollIntoView({ behavior: 'smooth' });
+        const data = await response.json();
+        const preview = document.getElementById('finance-preview-content');
+        
+        // 1. Clear and Inject
+        preview.innerHTML = data.html;
+
+        // 2. Wait a split second for the browser to register the new HTML
+        setTimeout(() => {
+            const scripts = preview.getElementsByTagName('script');
+            for (let i = 0; i < scripts.length; i++) {
+                try {
+                    eval(scripts[i].innerText);
+                } catch (e) {
+                    console.error("Chart Execution Error:", e);
+                }
+            }
+            lucide.createIcons();
+            document.getElementById('finance-results').classList.remove('hidden');
+        }, 500);
 
     } catch (e) {
-        showToast("Finance Audit failed: " + e.message, "error");
-        uploadZone.innerHTML = originalZoneHTML;
+        showToast("Error: AI timed out generating the large report. Try a smaller file.", "error");
     }
 }
 

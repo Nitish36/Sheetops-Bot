@@ -1258,26 +1258,39 @@ def generate_budget_email():
     if not file: return jsonify({"error": "No file"}), 400
 
     try:
-        # Read the 'Financials' tab
         df = pd.read_excel(file, sheet_name='Financials', header=4, engine='openpyxl')
 
-        # Data Cleaning: Remove completely empty rows/cols to save AI tokens
-        df = df.dropna(how='all').dropna(axis=1, how='all')
+        # --- OPTIMIZATION: Only send necessary columns to stay under timeout ---
+        cols_to_keep = ['Employee Name', 'Role', 'Bill Rate', 'Total Dollars', 'Total Hours']
+        # Also keep date columns (they usually have numbers or 'Actual'/'Forecast' in header)
+        date_cols = [col for col in df.columns if any(x in str(col) for x in ['1/0/1900', '2026', '2025'])]
+        filtered_df = df[cols_to_keep + date_cols].dropna(subset=['Employee Name']).head(50)
+        data_json = filtered_df.to_json(orient='records')
 
-        # Convert to a clean JSON for the AI
-        # orient='records' makes it easy for the AI to see 'Employee Name' vs 'Total Dollars'
-        data_json = df.to_json(orient='records')
-
+        # Call AI
         response = client.models.generate_content(
-            model='gemini-3-flash-preview',
-            contents=f"{BUDGET_PROMPT}\n\nDATA SOURCE:\n{data_json}"
+            model='gemini-3-flash-preview',  # Use Flash for speed to avoid timeouts
+            contents=f"{BUDGET_PROMPT}\n\nDATA:\n{data_json}"
         )
 
-        log_activity(current_user.id, "Finance Hub", "generate_detailed_report")
+        full_text = response.text
 
-        clean_html = response.text.replace("```html", "").replace("```", "").strip()
+        # --- STRICTER HTML EXTRACTION ---
+        # This finds everything between <html> and </html> even if there is text around it
+        import re
+        html_match = re.search(r'<html>[\s\S]*?</html>', full_text, re.IGNORECASE)
+
+        if html_match:
+            clean_html = html_match.group(0)
+        else:
+            # Fallback if AI didn't use <html> tags
+            clean_html = full_text.replace("```html", "").replace("```", "").strip()
+
         return jsonify({"html": clean_html})
+
     except Exception as e:
+        print(f"ERROR: {str(e)}")
+        # Return a JSON error so the frontend doesn't get an HTML page
         return jsonify({"error": str(e)}), 500
 
 @app.route('/logout')
