@@ -1255,38 +1255,30 @@ def generate_dashboard():
 @login_required
 def generate_budget_email():
     file = request.files.get('file')
-    if not file:
-        return jsonify({"error": "No file uploaded."}), 400
+    if not file: return jsonify({"error": "No file"}), 400
 
     try:
-        # --- CRITICAL UPDATE: Specify the 'Financials' sheet name ---
-        # engine='openpyxl' is required for modern .xlsx files
-        df = pd.read_excel(file, sheet_name='Financials', engine='openpyxl', header=4)
+        # Read the 'Financials' tab
+        df = pd.read_excel(file, sheet_name='Financials', header=4, engine='openpyxl')
 
-        # Convert the specific tab data to string for AI analysis
-        data_string = df.to_string()
+        # Data Cleaning: Remove completely empty rows/cols to save AI tokens
+        df = df.dropna(how='all').dropna(axis=1, how='all')
 
-        # Call your AI (Gemini or Bedrock)
-        # Using Gemini 3 Flash as requested for your test bot
+        # Convert to a clean JSON for the AI
+        # orient='records' makes it easy for the AI to see 'Employee Name' vs 'Total Dollars'
+        data_json = df.to_json(orient='records')
+
         response = client.models.generate_content(
             model='gemini-3-flash-preview',
-            contents=f"{BUDGET_PROMPT}\n\nSOURCE DATA (Financials Tab):\n{data_string}"
+            contents=f"{BUDGET_PROMPT}\n\nDATA SOURCE:\n{data_json}"
         )
 
-        log_activity(current_user.id, "Finance Hub", "generate_budget_email")
+        log_activity(current_user.id, "Finance Hub", "generate_detailed_report")
 
-        # Strip code blocks
         clean_html = response.text.replace("```html", "").replace("```", "").strip()
-
         return jsonify({"html": clean_html})
-
-    except ValueError:
-        # This error triggers if 'Financials' tab doesn't exist in the Excel file
-        return jsonify({
-                           "error": "Tab Error: Could not find a sheet named 'Financials' in this workbook. Please check the file."}), 400
     except Exception as e:
-        print(f"Finance Hub Error: {str(e)}")
-        return jsonify({"error": f"Processing Error: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/logout')
 @login_required
