@@ -655,7 +655,7 @@ window.downloadPDF = function(elementId) {
     downloadButtons.forEach(btn => btn.style.display = 'none');
 
     // 2. PDF Configuration
-    const opt = {
+    /*const opt = {
         margin:       [0.5, 0.5],
         filename:     `SheetOps_Financial_Update_${new Date().toISOString().slice(0,10)}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
@@ -666,6 +666,15 @@ window.downloadPDF = function(elementId) {
             logging: false
         },
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };*/
+    const opt = {
+    margin: [0.5, 0.5],
+    filename: `Finance_Report_${new Date().toISOString().slice(0,10)}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, backgroundColor: '#ffffff' },
+    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+    // ADD THIS LINE FOR LONG TABLES:
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } 
     };
 
     // 3. Generate the PDF

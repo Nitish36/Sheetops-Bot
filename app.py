@@ -390,11 +390,33 @@ The Excel file contains three distinct horizontal blocks:
 - Variance: Baseline Revenue - EAC.
 - Remaining Budget: (Baseline + Change Request Amount) - Actuals LTD.
 
+[STRICT LAYOUT ORDER]
+1. INTRO: "Hi Peter," followed by a concise 2-sentence summary of the project financial health.
+2. KPI SUMMARY: 6 high-visibility Summary Boxes: Baseline Revenue, Total Budget, Actuals LTD, EAC Revenue, Remaining Budget, and EAC Margin %.
+3. DOUGHNUT CHARTS: Display 'Budget Distribution' and 'EAC Composition' charts side-by-side using Chart.js v4.4.1.
+4. SECTION 1 (Validation & Trends): 
+   - A yellow 'Validation Notes' box (Flag if 'Actuals Check against WD' shows a 'Mismatch').
+   - 'Weekly Utilization' Table for the last 4-6 weeks.
+   - A large Bar/Line combo chart (Bars for Hrs, Red Line for Util %).
+5. SECTION 2 (Resource Audit): 
+   - A full 'Budget Over/Under' table at the individual Employee level. 
+   - Columns: Status (OVER/UNDER), Worker, Bill Rate, Baseline ($), Actuals ($), ETC ($), EAC ($), Variance ($).
+6. SECTION 3 (Strategic Callouts):
+   - Three colored callout boxes: Red (Top 5 OVER baseline), Green (Top 5 UNDER baseline), Blue (Placeholders with no activity).
+   - 'Key Highlights & Risks' section with 5 specific bullet points derived from the data.
+7. SIGN-OFF: "Regards,"
+
 [WEEKLY UTILIZATION LOGIC]
 Look at the date columns on the right (marked 'Actual' or 'Forecast'). 
 - Weekly Forecast: The sum of hours in the BASELINE date columns.
 - Weekly Actuals: The sum of hours in the ACTUALS date columns.
 - Utilization %: (Actual Hours / Forecast Hours) for that specific week.
+
+[VISUAL & CSS SPECIFICATIONS]
+- Theme: 'Palomar Health' style. Font: Calibri, Arial, sans-serif. 
+- Primary Navy: #1F4E79. Alternating row colors: #EEF4FB.
+- CRITICAL: To prevent text disappearing in Dark Mode, every <p>, <td>, <th>, <li>, and <span> tag MUST include an inline style: style="color: #000000 !important;".
+- All charts must be responsive and use Chart.js.
 
 [OUTPUT SPECIFICATIONS]
 1. Follow the 'Palomar Health' HTML template style strictly (Navy #1F4E79, Calibri font).
@@ -406,6 +428,7 @@ Look at the date columns on the right (marked 'Actual' or 'Forecast').
    - Chart 2: EAC Composition (Total Cost vs Profit Margin).
 
 Your response must be ONLY the HTML code starting with <html> and ending with </html>.
+IMPORTANT: Every <p> and <td> tag MUST include an inline style for color: black (e.g., <p style='color:#000;'>) to ensure visibility in dark-mode dashboards.
 """
 
 TICKET_OPTIONS = {
