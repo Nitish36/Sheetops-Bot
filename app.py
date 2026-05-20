@@ -373,25 +373,39 @@ Return a JSON object with these keys:
 
 Use professional colors: Teal (#14b8a6), Red (#ef4444), Blue (#3b82f6), Amber (#f59e0b).]\n\n"""
 
-BUDGET_PROMPT = """You are a Centralized Finance Support Specialist.
-Your task is to generate a stakeholder-ready email using the provided Excel Budget Tracker.
+BUDGET_PROMPT = """You are a Centralized Finance Support Specialist. 
+Your task is to generate a stakeholder-ready email from the provided Excel Budget Tracker.
 
-[STRICT TEMPLATE INSTRUCTIONS]
-1. Return the response as a single block of HTML code.
-2. Follow the Palomar Health WD Extension template style exactly (Calibri font, Navy headers #1F4E79, Light Blue alternate rows #EEF4FB).
-3. Include 'Summary Boxes' for Baseline Revenue, Total Budget, Actuals LTD, EAC Revenue, Remaining Budget, and EAC Margin.
-4. If the data contains weekly rows, generate a 'Weekly Utilization' table.
-5. If resource data is present, generate the 'Budget Over/Under' table for all workers.
-6. MANDATORY: The HTML must include a <script> block using Chart.js (v4.4.1) to render 'Budget Distribution' and 'EAC Composition' doughnut charts based on the calculated data.
+[DATA STRUCTURE DECODING]
+The Excel file contains three distinct horizontal blocks:
+1. BASELINE: The original budget plan.
+2. ACTUALS: The real hours/dollars spent to date.
+3. FORECAST: The projected hours/dollars for the future.
 
-[FINANCIAL LOGIC]
-- Variance = Baseline - Forecast
-- EAC = Actuals + Forecast
-- ETC = EAC - Actuals
-- Remaining Budget = Total Budget - Actuals
+[REQUIRED CALCULATIONS]
+- Baseline Revenue: Use the 'Total Dollars' sum from the BASELINE block.
+- Actuals LTD: Use the 'Total Dollars' sum from the ACTUALS block.
+- ETC (Estimate to Complete): Use the 'Total Dollars' sum from the FORECAST block.
+- EAC (Estimate at Completion): Sum of (Actuals LTD + ETC).
+- Variance: Baseline Revenue - EAC.
+- Remaining Budget: (Baseline + Change Request Amount) - Actuals LTD.
 
-[OUTPUT]
-Your output MUST start with <html> and end with </html>. Do not provide conversational text outside the HTML.
+[WEEKLY UTILIZATION LOGIC]
+Look at the date columns on the right (marked 'Actual' or 'Forecast'). 
+- Weekly Forecast: The sum of hours in the BASELINE date columns.
+- Weekly Actuals: The sum of hours in the ACTUALS date columns.
+- Utilization %: (Actual Hours / Forecast Hours) for that specific week.
+
+[OUTPUT SPECIFICATIONS]
+1. Follow the 'Palomar Health' HTML template style strictly (Navy #1F4E79, Calibri font).
+2. Generate the 'Weekly Utilization' table comparing Forecast vs. Actuals for the last 4 weeks.
+3. Generate the 'Budget Over/Under' table at the Employee level. Compare their 'Baseline Total Dollars' vs their 'EAC Total Dollars'.
+4. Include a 'Validation Notes' section if 'Actuals Check against WD' shows a 'Mismatch'.
+5. Include two Chart.js Doughnut charts:
+   - Chart 1: Budget Distribution (Actuals vs ETC vs Remaining Buffer).
+   - Chart 2: EAC Composition (Total Cost vs Profit Margin).
+
+Your response must be ONLY the HTML code starting with <html> and ending with </html>.
 """
 
 TICKET_OPTIONS = {
@@ -1218,28 +1232,38 @@ def generate_dashboard():
 @login_required
 def generate_budget_email():
     file = request.files.get('file')
-    if not file: return jsonify({"error": "No file"}), 400
+    if not file:
+        return jsonify({"error": "No file uploaded."}), 400
 
     try:
-        # Load the excel data for the AI to "read"
-        df = pd.read_excel(file)
-        # Convert the first 50 rows to a text summary to stay within token limits
-        data_json = df.to_json(orient='records')
+        # --- CRITICAL UPDATE: Specify the 'Financials' sheet name ---
+        # engine='openpyxl' is required for modern .xlsx files
+        df = pd.read_excel(file, sheet_name='Financials', engine='openpyxl', header=4)
 
-        # Use Gemini (as requested for your test bot)
-        response = ai_client.models.generate_content(
+        # Convert the specific tab data to string for AI analysis
+        data_string = df.to_string()
+
+        # Call your AI (Gemini or Bedrock)
+        # Using Gemini 3 Flash as requested for your test bot
+        response = client.models.generate_content(
             model='gemini-3-flash-preview',
-            contents=f"{BUDGET_PROMPT}\n\nDATA SOURCE (JSON):\n{data_json}"
+            contents=f"{BUDGET_PROMPT}\n\nSOURCE DATA (Financials Tab):\n{data_string}"
         )
 
-        # Log to activity
         log_activity(current_user.id, "Finance Hub", "generate_budget_email")
 
-        # Remove any Markdown code fences if the AI includes them
+        # Strip code blocks
         clean_html = response.text.replace("```html", "").replace("```", "").strip()
+
         return jsonify({"html": clean_html})
+
+    except ValueError:
+        # This error triggers if 'Financials' tab doesn't exist in the Excel file
+        return jsonify({
+                           "error": "Tab Error: Could not find a sheet named 'Financials' in this workbook. Please check the file."}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Finance Hub Error: {str(e)}")
+        return jsonify({"error": f"Processing Error: {str(e)}"}), 500
 
 @app.route('/logout')
 @login_required
