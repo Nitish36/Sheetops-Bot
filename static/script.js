@@ -600,7 +600,7 @@ window.toggleMobileMenu = function() {
 };
 
 /* ATTACH TO WINDOW TO ENSURE GLOBAL ACCESS*/
-window.downloadPDF = function(elementId) {
+/*window.downloadPDF = function(elementId) {
     const element = document.getElementById(elementId);
     
     // Find and hide the download button so it doesn't appear IN the PDF
@@ -639,6 +639,42 @@ window.downloadPDF = function(elementId) {
     html2pdf().set(opt).from(tempDiv).save().then(() => {
         // Show button again in the UI
         if (btnContainer) btnContainer.style.display = 'block';
+    });
+};*/
+
+window.downloadPDF = function(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) {
+        showToast("Export error: Content not found", "error");
+        return;
+    }
+    
+    // 1. Find the button that was clicked. 
+    // We look globally first, then locally, to ensure we don't crash.
+    const downloadButtons = document.querySelectorAll('button[onclick*="downloadPDF"]');
+    downloadButtons.forEach(btn => btn.style.display = 'none');
+
+    // 2. PDF Configuration
+    const opt = {
+        margin:       [0.5, 0.5],
+        filename:     `SheetOps_Financial_Update_${new Date().toISOString().slice(0,10)}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2, 
+            backgroundColor: '#ffffff', // Finance reports look better on white
+            useCORS: true,
+            logging: false
+        },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    // 3. Generate the PDF
+    html2pdf().set(opt).from(element).save().then(() => {
+        // 4. Show the buttons again after the PDF is generated
+        downloadButtons.forEach(btn => btn.style.display = 'flex');
+    }).catch(err => {
+        console.error("PDF Generation Error:", err);
+        downloadButtons.forEach(btn => btn.style.display = 'flex');
     });
 };
 
