@@ -128,39 +128,32 @@ async function handleFinanceUpload(event) {
     try {
         const response = await fetch('/generate-budget-email', { 
             method: 'POST', 
-            headers: { 'X-CSRFToken': getCsrfToken() }, 
+            headers: { 'X-CSRFToken': getCsrfToken() }, // Ensure CSRF is here
             body: formData 
         });
-
-        // NEW: Check if response is actually JSON
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Server returned non-JSON:", errorText);
-            throw new Error("Server Error: Check Console");
-        }
-
         const data = await response.json();
-        const preview = document.getElementById('finance-preview-content');
+
+        // 1. Reveal results
+        document.getElementById('finance-results').classList.remove('hidden');
+        uploadZone.innerHTML = originalZoneHTML; // Restore for next use
         
-        // 1. Clear and Inject
+        // 2. Inject HTML into an iframe or Div
+        // Note: Using a Div is easier for your existing PDF export
+        const preview = document.getElementById('finance-preview-content');
         preview.innerHTML = data.html;
 
-        // 2. Wait a split second for the browser to register the new HTML
-        setTimeout(() => {
-            const scripts = preview.getElementsByTagName('script');
-            for (let i = 0; i < scripts.length; i++) {
-                try {
-                    eval(scripts[i].innerText);
-                } catch (e) {
-                    console.error("Chart Execution Error:", e);
-                }
-            }
-            lucide.createIcons();
-            document.getElementById('finance-results').classList.remove('hidden');
-        }, 500);
+        // 3. Re-run any scripts contained in the AI's HTML (for the Charts)
+        const scripts = preview.getElementsByTagName('script');
+        for (let i = 0; i < scripts.length; i++) {
+            eval(scripts[i].innerText);
+        }
+
+        lucide.createIcons();
+        preview.scrollIntoView({ behavior: 'smooth' });
 
     } catch (e) {
-        showToast("Error: AI timed out generating the large report. Try a smaller file.", "error");
+        showToast("Finance Audit failed: " + e.message, "error");
+        uploadZone.innerHTML = originalZoneHTML;
     }
 }
 
@@ -662,7 +655,7 @@ window.downloadPDF = function(elementId) {
     downloadButtons.forEach(btn => btn.style.display = 'none');
 
     // 2. PDF Configuration
-    /*const opt = {
+    const opt = {
         margin:       [0.5, 0.5],
         filename:     `SheetOps_Financial_Update_${new Date().toISOString().slice(0,10)}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
@@ -673,15 +666,6 @@ window.downloadPDF = function(elementId) {
             logging: false
         },
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };*/
-    const opt = {
-    margin: [0.5, 0.5],
-    filename: `Finance_Report_${new Date().toISOString().slice(0,10)}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, backgroundColor: '#ffffff' },
-    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-    // ADD THIS LINE FOR LONG TABLES:
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } 
     };
 
     // 3. Generate the PDF

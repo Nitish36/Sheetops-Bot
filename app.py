@@ -390,33 +390,11 @@ The Excel file contains three distinct horizontal blocks:
 - Variance: Baseline Revenue - EAC.
 - Remaining Budget: (Baseline + Change Request Amount) - Actuals LTD.
 
-[STRICT LAYOUT ORDER]
-1. INTRO: "Hi Peter," followed by a concise 2-sentence summary of the project financial health.
-2. KPI SUMMARY: 6 high-visibility Summary Boxes: Baseline Revenue, Total Budget, Actuals LTD, EAC Revenue, Remaining Budget, and EAC Margin %.
-3. DOUGHNUT CHARTS: Display 'Budget Distribution' and 'EAC Composition' charts side-by-side using Chart.js v4.4.1.
-4. SECTION 1 (Validation & Trends): 
-   - A yellow 'Validation Notes' box (Flag if 'Actuals Check against WD' shows a 'Mismatch').
-   - 'Weekly Utilization' Table for the last 4-6 weeks.
-   - A large Bar/Line combo chart (Bars for Hrs, Red Line for Util %).
-5. SECTION 2 (Resource Audit): 
-   - A full 'Budget Over/Under' table at the individual Employee level. 
-   - Columns: Status (OVER/UNDER), Worker, Bill Rate, Baseline ($), Actuals ($), ETC ($), EAC ($), Variance ($).
-6. SECTION 3 (Strategic Callouts):
-   - Three colored callout boxes: Red (Top 5 OVER baseline), Green (Top 5 UNDER baseline), Blue (Placeholders with no activity).
-   - 'Key Highlights & Risks' section with 5 specific bullet points derived from the data.
-7. SIGN-OFF: "Regards,"
-
 [WEEKLY UTILIZATION LOGIC]
 Look at the date columns on the right (marked 'Actual' or 'Forecast'). 
 - Weekly Forecast: The sum of hours in the BASELINE date columns.
 - Weekly Actuals: The sum of hours in the ACTUALS date columns.
 - Utilization %: (Actual Hours / Forecast Hours) for that specific week.
-
-[VISUAL & CSS SPECIFICATIONS]
-- Theme: 'Palomar Health' style. Font: Calibri, Arial, sans-serif. 
-- Primary Navy: #1F4E79. Alternating row colors: #EEF4FB.
-- CRITICAL: To prevent text disappearing in Dark Mode, every <p>, <td>, <th>, <li>, and <span> tag MUST include an inline style: style="color: #000000 !important;".
-- All charts must be responsive and use Chart.js.
 
 [OUTPUT SPECIFICATIONS]
 1. Follow the 'Palomar Health' HTML template style strictly (Navy #1F4E79, Calibri font).
@@ -428,7 +406,6 @@ Look at the date columns on the right (marked 'Actual' or 'Forecast').
    - Chart 2: EAC Composition (Total Cost vs Profit Margin).
 
 Your response must be ONLY the HTML code starting with <html> and ending with </html>.
-IMPORTANT: Every <p> and <td> tag MUST include an inline style for color: black (e.g., <p style='color:#000;'>) to ensure visibility in dark-mode dashboards.
 """
 
 TICKET_OPTIONS = {
@@ -1255,43 +1232,38 @@ def generate_dashboard():
 @login_required
 def generate_budget_email():
     file = request.files.get('file')
-    if not file: return jsonify({"error": "No file"}), 400
+    if not file:
+        return jsonify({"error": "No file uploaded."}), 400
 
     try:
-        df = pd.read_excel(file, sheet_name='Financials', header=4, engine='openpyxl')
+        # --- CRITICAL UPDATE: Specify the 'Financials' sheet name ---
+        # engine='openpyxl' is required for modern .xlsx files
+        df = pd.read_excel(file, sheet_name='Financials', engine='openpyxl', header=4)
 
-        # --- OPTIMIZATION: Only send necessary columns to stay under timeout ---
-        cols_to_keep = ['Employee Name', 'Role', 'Bill Rate', 'Total Dollars', 'Total Hours']
-        # Also keep date columns (they usually have numbers or 'Actual'/'Forecast' in header)
-        date_cols = [col for col in df.columns if any(x in str(col) for x in ['1/0/1900', '2026', '2025'])]
-        filtered_df = df[cols_to_keep + date_cols].dropna(subset=['Employee Name']).head(50)
-        data_json = filtered_df.to_json(orient='records')
+        # Convert the specific tab data to string for AI analysis
+        data_string = df.to_string()
 
-        # Call AI
+        # Call your AI (Gemini or Bedrock)
+        # Using Gemini 3 Flash as requested for your test bot
         response = client.models.generate_content(
-            model='gemini-3-flash-preview',  # Use Flash for speed to avoid timeouts
-            contents=f"{BUDGET_PROMPT}\n\nDATA:\n{data_json}"
+            model='gemini-3-flash-preview',
+            contents=f"{BUDGET_PROMPT}\n\nSOURCE DATA (Financials Tab):\n{data_string}"
         )
 
-        full_text = response.text
+        log_activity(current_user.id, "Finance Hub", "generate_budget_email")
 
-        # --- STRICTER HTML EXTRACTION ---
-        # This finds everything between <html> and </html> even if there is text around it
-        import re
-        html_match = re.search(r'<html>[\s\S]*?</html>', full_text, re.IGNORECASE)
-
-        if html_match:
-            clean_html = html_match.group(0)
-        else:
-            # Fallback if AI didn't use <html> tags
-            clean_html = full_text.replace("```html", "").replace("```", "").strip()
+        # Strip code blocks
+        clean_html = response.text.replace("```html", "").replace("```", "").strip()
 
         return jsonify({"html": clean_html})
 
+    except ValueError:
+        # This error triggers if 'Financials' tab doesn't exist in the Excel file
+        return jsonify({
+                           "error": "Tab Error: Could not find a sheet named 'Financials' in this workbook. Please check the file."}), 400
     except Exception as e:
-        print(f"ERROR: {str(e)}")
-        # Return a JSON error so the frontend doesn't get an HTML page
-        return jsonify({"error": str(e)}), 500
+        print(f"Finance Hub Error: {str(e)}")
+        return jsonify({"error": f"Processing Error: {str(e)}"}), 500
 
 @app.route('/logout')
 @login_required
