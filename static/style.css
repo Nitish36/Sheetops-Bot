@@ -508,3 +508,35 @@ nav {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #14b8a6; /* teal-500 */
 }
+
+/* --- FINANCE PREVIEW ISOLATION --- */
+#finance-preview-content {
+    background-color: #ffffff !important;
+    color: #000000 !important; /* Force text to be black */
+}
+
+/* Force all standard elements inside the preview to be visible */
+#finance-preview-content p, 
+#finance-preview-content div, 
+#finance-preview-content span, 
+#finance-preview-content li, 
+#finance-preview-content td {
+    color: #000000 !important;
+}
+
+/* Keep the special colors for Red/Green variances */
+#finance-preview-content .red { color: #C00000 !important; }
+#finance-preview-content .green { color: #00B050 !important; }
+
+/* Headers should stay the Navy color from the template */
+#finance-preview-content h2.section,
+#finance-preview-content th {
+    background-color: #1F4E79 !important;
+    color: #ffffff !important; /* Header text SHOULD be white */
+}
+
+/* Adjust summary boxes to look right on white */
+#finance-preview-content .summary-box {
+    background-color: #EEF4FB !important;
+    border: 1px solid #B8CCE4 !important;
+}
