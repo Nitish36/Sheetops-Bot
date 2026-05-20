@@ -319,6 +319,10 @@
                 <button onclick="switchView('toolkit')" id="side-toolkit" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition">
                     <i data-lucide="layout-grid" class="w-5 h-5"></i> Toolkit
                 </button>
+                <button onclick="switchView('finance')" id="side-finance" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-slate-800 transition">
+                    <i data-lucide="calculator" class="text-teal-400 w-5 h-5"></i>
+                    <span class="font-bold uppercase tracking-widest text-[10px]">Finance Hub</span>
+                </button>
                 <button onclick="switchView('chats')" id="side-chats" class="nav-btn w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-800 text-white transition">
                     <i data-lucide="message-square" class="w-5 h-5"></i> Chats
                 </button>
@@ -420,6 +424,43 @@
                     </div>
                     <div id="formula-result-box" class="hidden mt-6 bg-slate-800/20 border border-teal-500/20 rounded-2xl p-6">
                         <div id="formula-output" class="text-slate-200 text-sm leading-relaxed"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 8. FINANCE HUB CONTAINER -->
+            <div id="finance-container" class="hidden flex-1 overflow-y-auto p-8">
+                <div class="max-w-6xl mx-auto mt-10">
+                    <header class="mb-12">
+                        <h2 class="text-4xl font-black tracking-tighter uppercase italic text-white">Finance <span class="text-teal-500">Hub</span></h2>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">Generate Stakeholder-ready budget summaries from trackers</p>
+                    </header>
+
+                    <!-- Drop Zone for Budget Excel -->
+                    <div id="finance-upload-zone" class="p-12 bg-slate-900/40 border-2 border-dashed border-slate-800 rounded-[30px] flex flex-col items-center justify-center gap-6 hover:border-teal-500/50 transition-all group">
+                        <div class="w-16 h-16 bg-teal-500/10 rounded-2xl flex items-center justify-center">
+                            <i data-lucide="file-spreadsheet" class="text-teal-500 w-8 h-8"></i>
+                        </div>
+                        <div class="text-center">
+                            <button onclick="triggerFinanceUpload()" class="bg-teal-600 hover:bg-teal-500 text-[#0f172a] px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs">
+                                Upload Budget Tracker
+                            </button>
+                            <p class="text-slate-500 text-[10px] mt-4 uppercase font-bold italic">Upload your standard Excel Budget Export</p>
+                        </div>
+                    </div>
+                    <input type="file" id="finance-file-input" accept=".xlsx, .csv" class="hidden" onchange="handleFinanceUpload(event)">
+
+                    <!-- Output Preview Area -->
+                    <div id="finance-results" class="hidden mt-12 bg-white rounded-2xl overflow-hidden shadow-2xl p-1">
+                        <div class="bg-slate-100 p-4 border-b flex justify-between items-center">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email Template Preview</span>
+                            <button onclick="downloadPDF('finance-preview-content')" class="bg-[#1F4E79] text-white px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2">
+                                <i data-lucide="download" class="w-3 h-3"></i> Export as PDF
+                            </button>
+                        </div>
+                        <div id="finance-preview-content" class="p-8 bg-white min-h-[500px]">
+                            <!-- AI Generated HTML Template will be injected here -->
+                        </div>
                     </div>
                 </div>
             </div>

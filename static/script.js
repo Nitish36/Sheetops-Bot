@@ -106,6 +106,57 @@ async function startVisualizer() {
     draw();
 }
 
+/* Budget Tracker */
+
+function triggerFinanceUpload() {
+    document.getElementById('finance-file-input').click();
+}
+
+async function handleFinanceUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show loading
+    const uploadZone = document.getElementById('finance-upload-zone');
+    const originalZoneHTML = uploadZone.innerHTML;
+    uploadZone.innerHTML = `<div class="animate-pulse flex flex-col items-center"><i data-lucide="loader" class="w-10 h-10 text-teal-500 animate-spin mb-4"></i><p class="text-white font-bold uppercase tracking-widest text-xs">Generating Project Financials...</p></div>`;
+    lucide.createIcons();
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/generate-budget-email', { 
+            method: 'POST', 
+            headers: { 'X-CSRFToken': getCsrfToken() }, // Ensure CSRF is here
+            body: formData 
+        });
+        const data = await response.json();
+
+        // 1. Reveal results
+        document.getElementById('finance-results').classList.remove('hidden');
+        uploadZone.innerHTML = originalZoneHTML; // Restore for next use
+        
+        // 2. Inject HTML into an iframe or Div
+        // Note: Using a Div is easier for your existing PDF export
+        const preview = document.getElementById('finance-preview-content');
+        preview.innerHTML = data.html;
+
+        // 3. Re-run any scripts contained in the AI's HTML (for the Charts)
+        const scripts = preview.getElementsByTagName('script');
+        for (let i = 0; i < scripts.length; i++) {
+            eval(scripts[i].innerText);
+        }
+
+        lucide.createIcons();
+        preview.scrollIntoView({ behavior: 'smooth' });
+
+    } catch (e) {
+        showToast("Finance Audit failed: " + e.message, "error");
+        uploadZone.innerHTML = originalZoneHTML;
+    }
+}
+
 // Helper to use suggestion cards
 function setPrompt(text) {
     document.getElementById('user-input').value = text;
@@ -127,6 +178,7 @@ function switchView(viewName) {
     const globalInput = document.getElementById('global-input-area');
     const breadcrumb = document.getElementById('breadcrumb');
     const settingsCont = document.getElementById('settings-container');
+    const financeCont = document.getElementById('finance-container');
 
     // 1. Navigation Toggle: Hide landing and show the dashboard wrapper
     if (homePage) homePage.classList.add('hidden');
@@ -135,7 +187,7 @@ function switchView(viewName) {
 
     // 2. Hide ALL containers first to ensure a clean slate
     // Added settingsCont to this array
-    [chatCont, formCont, toolCont, faqCont, memoryCont, analyticsCont, dashboardbuild, onBoard, settingsCont ].forEach(c => {
+    [chatCont, formCont, toolCont, faqCont, memoryCont, analyticsCont, dashboardbuild, onBoard, settingsCont, financeCont ].forEach(c => {
         if (c) c.classList.add('hidden');
     });
 
@@ -185,6 +237,12 @@ function switchView(viewName) {
         if (dashboardbuild) dashboardbuild.classList.remove('hidden');
         globalInput.classList.add('hidden');
         breadcrumb.innerText = "Main / Dashboard Builder";
+    }
+
+    else if (viewName === 'finance') {
+        if (financeCont) financeCont.classList.remove('hidden');
+        globalInput.classList.add('hidden');
+        breadcrumb.innerText = "Main / Finance Hub";
     }
 
     else if (viewName === 'onboarding') {
